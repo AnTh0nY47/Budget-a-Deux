@@ -82,13 +82,17 @@ section{display:flex;flex-direction:column;gap:10px}
 .total{font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
 .hint{font-size:16px;color:var(--muted);margin:-4px 0 0}
 .rows{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px}
-.row{display:grid;grid-template-columns:minmax(0,1fr) 110px 240px 34px;gap:8px;align-items:center;padding:5px 10px;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 110px 220px 76px 34px;gap:8px;align-items:center;padding:5px 10px;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
 .row input,.row select{font:inherit;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:7px;padding:7px 9px;width:100%;min-width:0}
 .row input:hover,.row select:hover{border-color:var(--line)}
 .row input:focus,.row select:focus{border-color:var(--green);outline:none;background:#fcfdfc}
 .row .m{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
 .row .w{color:var(--muted)}
+.kind{border:1px solid var(--line);background:var(--card);color:var(--green);border-radius:999px;padding:3px 10px;font-size:14px;font-style:italic;white-space:nowrap}
+.kind:hover{border-color:var(--green)}
+.kind.is-perso{color:var(--faint);border-style:dashed}
+.row.perso .l,.row.perso .m{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line)}
 .del{border:0;background:transparent;color:var(--faint);width:30px;height:30px;border-radius:7px;font-size:18px;line-height:1}
 .del:hover{background:#f6e6e2;color:var(--red)}
 .empty{padding:14px 12px;color:var(--muted);font-size:16px;font-style:italic}
@@ -111,7 +115,8 @@ fieldset:disabled .add,fieldset:disabled .del{display:none}
 @media (max-width:560px){
   h1{font-size:28px}
   .hero-top,.calc{padding-left:18px;padding-right:18px}
-  .row{grid-template-columns:minmax(0,1fr) 104px 30px;grid-template-areas:"l m d" "w w d"}
+  .row{grid-template-columns:minmax(0,1fr) 104px 30px;grid-template-areas:"l m d" "w k d"}
+  .row .kind,.row .kind-gap{grid-area:k;justify-self:end}
   .row .l{grid-area:l}.row .m{grid-area:m}.row .w{grid-area:w}.row .del{grid-area:d}
   .row .w{font-size:13px}
 }
@@ -175,6 +180,7 @@ function setMonthLabel(){ $('#monthLabel').textContent = cur.toLocaleDateString(
 setMonthLabel();
 
 const FIXED = ['charges','aides','revenus'];
+const commun = list => (list||[]).filter(x=>!x.perso);
 const DEPART = {personnes:{a:'Anthony le Magnifique',b:'Princesse'},
   revenus:[{id:'r1',label:'Salaire',montant:0,qui:'a'},{id:'r2',label:'Salaire',montant:0,qui:'b'}],
   aides:[{id:'a1',label:'APL',montant:0,compte:'a'},{id:'a2',label:"Prime d'activité",montant:0,compte:'a'}],
@@ -190,14 +196,14 @@ function names(){ return {a: main?.personnes?.a || 'Personne A', b: main?.person
 /* ---------- calcul ---------- */
 function compute(){
   const N = names();
-  const R = eff('revenus'), C = eff('charges'), A = eff('aides');
+  const R = eff('revenus'), C = commun(eff('charges')), A = eff('aides'), D = commun(month.depenses);
   const Ra = sum(R, x=>x.qui==='a'), Rb = sum(R, x=>x.qui==='b');
   const pa = (Ra+Rb)>0 ? Ra/(Ra+Rb) : .5, pb = 1-pa;
-  const fixe = sum(C), aides = sum(A), communs = sum(month.depenses);
+  const fixe = sum(C), aides = sum(A), communs = sum(D);
   const total = fixe - aides + communs;
   const partA = total*pa, partB = total*pb;
-  const paidA = sum(C,x=>x.compte==='a') + sum(month.depenses,x=>x.payeur==='a') - sum(A,x=>x.compte==='a');
-  const paidB = sum(C,x=>x.compte==='b') + sum(month.depenses,x=>x.payeur==='b') - sum(A,x=>x.compte==='b');
+  const paidA = sum(C,x=>x.compte==='a') + sum(D,x=>x.payeur==='a') - sum(A,x=>x.compte==='a');
+  const paidB = sum(C,x=>x.compte==='b') + sum(D,x=>x.payeur==='b') - sum(A,x=>x.compte==='b');
   const diff = paidA - partA; // >0 : B doit à A
   return {N,Ra,Rb,pa,pb,fixe,aides,communs,total,partA,partB,paidA,paidB,diff};
 }
@@ -211,10 +217,11 @@ function whoSelect(field, val, N){
 const fmtIn = v => (v===''||v==null) ? '' : num(v).toFixed(2).replace('.',',');
 function rowsHtml(list, coll, field, N, placeholder){
   if(!list || !list.length) return `<div class="empty">Rien pour l'instant.</div>`;
-  return list.map(x=>`<div class="row" data-c="${coll}" data-id="${esc(x.id)}">
+  return list.map(x=>`<div class="row${x.perso?' perso':''}" data-c="${coll}" data-id="${esc(x.id)}">
     <input class="l" data-f="label" value="${esc(x.label)}" placeholder="${placeholder}" aria-label="Libellé">
     <input class="m" data-f="montant" inputmode="decimal" value="${esc(fmtIn(x.montant))}" placeholder="0,00" aria-label="Montant en euros">
     ${whoSelect(field, x[field], N)}
+    ${(coll==='charges'||coll==='depenses') ? `<button class="kind${x.perso?' is-perso':''}" data-perso aria-pressed="${x.perso?'true':'false'}" title="Une dépense perso n'entre pas dans le calcul">${x.perso?'perso':'commun'}</button>` : '<span class="kind-gap"></span>'}
     <button class="del" data-del aria-label="Supprimer ${esc(x.label)}">×</button></div>`).join('');
 }
 
@@ -251,11 +258,11 @@ function renderAll(){
   <fieldset id="edit" ${canWrite?'':'disabled'} style="display:flex;flex-direction:column;gap:28px;margin-top:28px">
     <section ${secStyle('depenses')}>
       ${head('depenses','Dépenses du mois','','t-dep')}
-      <p class="hint">Les courses, les sorties, la pharmacie. On les partage aussi selon les salaires.</p>
+      <p class="hint">Les courses, les sorties, la pharmacie. On les partage aussi selon les salaires, sauf celles marquées perso.</p>
       <div class="rows" id="r-dep">${rowsHtml(month.depenses,'depenses','payeur',N,'Courses Leclerc')}</div>
       <button class="add" data-add="depenses">Ajouter une dépense</button>
     </section>
-    ${fixedSection('charges','Charges fixes','Elles reviennent chaque mois. Si un montant change, modifie-le ici, ça ne touche que ce mois.','compte',N,'Loyer','t-ch','Ajouter une charge')}
+    ${fixedSection('charges','Charges fixes','Elles reviennent chaque mois. Si un montant change, modifie-le ici, ça ne touche que ce mois. Une charge marquée perso ne compte pas dans le partage.','compte',N,'Loyer','t-ch','Ajouter une charge')}
     ${fixedSection('aides','Aides du foyer','On les retire des charges avant de faire les parts.','compte',N,'APL','t-ai','Ajouter une aide')}
     ${fixedSection('revenus','Revenus','Les salaires nets du mois.','qui',N,'Salaire','t-rev','Ajouter un revenu')}
     <section ${secStyle('noms')}>
@@ -273,9 +280,9 @@ function renderSummary(){
   const hero = $('#hero'); if(!hero || !main) return;
   const c = compute(), N = c.N;
   const amt = Math.abs(c.diff);
-  const C = eff('charges'), A = eff('aides');
+  const C = commun(eff('charges')), A = eff('aides'), D = commun(month.depenses);
   const chA = sum(C,x=>x.compte==='a'), chB = sum(C,x=>x.compte==='b');
-  const dpA = sum(month.depenses,x=>x.payeur==='a'), dpB = sum(month.depenses,x=>x.payeur==='b');
+  const dpA = sum(D,x=>x.payeur==='a'), dpB = sum(D,x=>x.payeur==='b');
   const aiA = sum(A,x=>x.compte==='a'), aiB = sum(A,x=>x.compte==='b');
   let line, note;
   if(amt < 0.005){ line = `Pas de virement ce mois-ci`; note = `Chacun a déjà payé sa part, on est quittes.`; }
@@ -409,6 +416,12 @@ app.addEventListener('click', e=>{
     renderAll();
     const rows = document.querySelectorAll(`.row[data-c="${coll}"] .l`); if(rows.length) rows[rows.length-1].focus();
     return;
+  }
+  const kind = e.target.closest('[data-perso]');
+  if(kind){
+    const row = kind.closest('.row'), coll = row.dataset.c;
+    const item = listFor(coll).find(x=>x.id===row.dataset.id); if(!item) return;
+    item.perso = !item.perso; saveMonth(true); renderAll(); return;
   }
   const del = e.target.closest('[data-del]');
   if(del){
