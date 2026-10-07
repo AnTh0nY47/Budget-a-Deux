@@ -1,0 +1,26 @@
+name: Rappel du virement
+
+on:
+  schedule:
+    # Le 1er de chaque mois vers 9h, heure de Paris
+    - cron: '0 7 1 * *'
+  workflow_dispatch:
+
+jobs:
+  rappel:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rappel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund --silent
+      - run: node rappel.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
