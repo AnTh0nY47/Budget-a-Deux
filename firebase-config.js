@@ -1,8 +1,9 @@
-// Remplace ces valeurs par celles de ton projet Firebase
-// (Console Firebase, Paramètres du projet, Vos applications, Configuration)
+// Configuration publique du projet Firebase (elle ne donne accès à rien sans les règles de sécurité)
 window.FIREBASE_CONFIG = {
-  apiKey: "A_REMPLIR",
-  authDomain: "A_REMPLIR.firebaseapp.com",
-  projectId: "A_REMPLIR",
-  appId: "A_REMPLIR"
+  apiKey: "AIzaSyAqm1M3XI52VV33VZxzjykBnnQAO6zo4N8",
+  authDomain: "budget-a-deux.firebaseapp.com",
+  projectId: "budget-a-deux",
+  storageBucket: "budget-a-deux.firebasestorage.app",
+  messagingSenderId: "526018349633",
+  appId: "1:526018349633:web:3a0f061c72c4f1d761d4c0"
 };
