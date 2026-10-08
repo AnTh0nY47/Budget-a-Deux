@@ -68,6 +68,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-variant-numeric:tabular-nums}
 .line span:last-child{font-weight:500;white-space:nowrap}
 .line .op{display:inline-block;width:1.2em;color:var(--faint);font-weight:700}
+.encours{border-top:1px solid var(--line);padding-top:16px}
+@media (max-width:560px){ .calc .line{flex-wrap:wrap;gap:0 12px} .calc .line span:last-child{margin-left:auto;text-align:right} }
 .line.total{border-top:1px solid var(--ink);margin-top:4px;padding-top:10px;font-weight:600}
 .line.total span:last-child{font-weight:600}
 .people{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
@@ -183,8 +185,9 @@ const sum = (arr, f) => (arr||[]).reduce((s,x)=> s + (f? (f(x)?num(x.montant):0)
 let db = null, canWrite = true;
 let main = null, mainExists = null;
 let month = {depenses:[], vire:false};
+let prev = {depenses:[], vire:false};   // le mois d'avant, pour régler ses dépenses
 let cur = new Date(); cur = new Date(cur.getFullYear(), cur.getMonth(), 1);
-let unsubMonth = null, pendingRemoteMain = null, pendingRemoteMonth = null;
+let unsubMonth = null, unsubPrev = null, pendingRemoteMain = null, pendingRemoteMonth = null;
 const timers = {};
 
 function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
@@ -203,18 +206,33 @@ function differs(coll){ return own(coll) && JSON.stringify(month[coll]) !== JSON
 function names(){ return {a: main?.personnes?.a || 'Personne A', b: main?.personnes?.b || 'Personne B'}; }
 
 /* ---------- calcul ---------- */
+// Le virement de début de mois règle deux choses :
+// les charges fixes du mois qui commence, et les dépenses du mois précédent (courses, sorties…).
+function prorata(R){
+  const Ra = sum(R, x=>x.qui==='a'), Rb = sum(R, x=>x.qui==='b');
+  const pa = (Ra+Rb)>0 ? Ra/(Ra+Rb) : .5;
+  return {Ra, Rb, pa, pb: 1-pa};
+}
+function soldeDepenses(m, R){
+  const D = commun(m.depenses), p = prorata(R);
+  const total = sum(D), paidA = sum(D,x=>x.payeur==='a'), paidB = sum(D,x=>x.payeur==='b');
+  return {total, paidA, paidB, partA: total*p.pa, partB: total*p.pb, diff: paidA - total*p.pa};
+}
 function compute(){
   const N = names();
-  const R = eff('revenus'), C = commun(eff('charges')), A = eff('aides'), D = commun(month.depenses);
-  const Ra = sum(R, x=>x.qui==='a'), Rb = sum(R, x=>x.qui==='b');
-  const pa = (Ra+Rb)>0 ? Ra/(Ra+Rb) : .5, pb = 1-pa;
-  const fixe = sum(C), aides = sum(A), communs = sum(D);
-  const total = fixe - aides + communs;
+  const R = eff('revenus'), C = commun(eff('charges')), A = eff('aides');
+  const {Ra, Rb, pa, pb} = prorata(R);
+  const fixe = sum(C), aides = sum(A);
+  const total = fixe - aides;
   const partA = total*pa, partB = total*pb;
-  const paidA = sum(C,x=>x.compte==='a') + sum(D,x=>x.payeur==='a') - sum(A,x=>x.compte==='a');
-  const paidB = sum(C,x=>x.compte==='b') + sum(D,x=>x.payeur==='b') - sum(A,x=>x.compte==='b');
-  const diff = paidA - partA; // >0 : B doit à A
-  return {N,Ra,Rb,pa,pb,fixe,aides,communs,total,partA,partB,paidA,paidB,diff};
+  const paidA = sum(C,x=>x.compte==='a') - sum(A,x=>x.compte==='a');
+  const paidB = sum(C,x=>x.compte==='b') - sum(A,x=>x.compte==='b');
+  const diffFixe = paidA - partA;                      // >0 : B doit à A
+  const Rprev = Array.isArray(prev.revenus) ? prev.revenus : (main?.revenus||[]);
+  const avant = soldeDepenses(prev, Rprev);             // dépenses du mois précédent, réglées maintenant
+  const enCours = soldeDepenses(month, R);              // dépenses de ce mois, réglées le mois prochain
+  const diff = diffFixe + avant.diff;
+  return {N,Ra,Rb,pa,pb,fixe,aides,total,partA,partB,paidA,paidB,diffFixe,avant,enCours,diff,communs:enCours.total};
 }
 
 /* ---------- rendu ---------- */
@@ -267,7 +285,7 @@ function renderAll(){
   <fieldset id="edit" ${canWrite?'':'disabled'} style="display:flex;flex-direction:column;gap:28px;margin-top:28px">
     <section ${secStyle('depenses')}>
       ${head('depenses','Dépenses du mois','','t-dep')}
-      <p class="hint">Les courses, les sorties, la pharmacie. On les partage aussi selon les salaires, sauf celles marquées perso.</p>
+      <p class="hint">Les courses, les sorties, la pharmacie, au fur et à mesure du mois. Elles sont partagées selon les salaires et réglées avec le virement du début du mois prochain. Celles marquées perso ne comptent pas.</p>
       <div class="rows" id="r-dep">${rowsHtml(month.depenses,'depenses','payeur',N,'Courses Leclerc')}</div>
       <button class="add" data-add="depenses">Ajouter une dépense</button>
     </section>
@@ -288,49 +306,42 @@ function renderAll(){
 function renderSummary(){
   const hero = $('#hero'); if(!hero || !main) return;
   const c = compute(), N = c.N;
+  const nomMois = d => d.toLocaleDateString('fr-FR',{month:'long'});
+  const ce = nomMois(cur), avant = nomMois(new Date(cur.getFullYear(), cur.getMonth()-1, 1)), apres = nomMois(new Date(cur.getFullYear(), cur.getMonth()+1, 1));
+  const de = m => (/^[aeiouyh]/i.test(m) ? 'd’' : 'de ') + m;
+  const qui = d => Math.abs(d) < 0.005 ? 'rien à régler' : (d > 0 ? `${esc(N.b)} doit ${eur(d)}` : `${esc(N.a)} doit ${eur(-d)}`);
   const amt = Math.abs(c.diff);
-  const C = commun(eff('charges')), A = eff('aides'), D = commun(month.depenses);
-  const chA = sum(C,x=>x.compte==='a'), chB = sum(C,x=>x.compte==='b');
-  const dpA = sum(D,x=>x.payeur==='a'), dpB = sum(D,x=>x.payeur==='b');
-  const aiA = sum(A,x=>x.compte==='a'), aiB = sum(A,x=>x.compte==='b');
-  let line, note;
-  if(amt < 0.005){ line = `Pas de virement ce mois-ci`; note = `Chacun a déjà payé sa part, on est quittes.`; }
-  else {
-    const from = c.diff>0 ? N.b : N.a, to = c.diff>0 ? N.a : N.b;
-    line = `${esc(from)} vire <span class="amt num">${eur(amt)}</span> à ${esc(to)}`;
-    note = `Une fois le virement fait, on est quittes pour le mois.`;
-  }
+  let line;
+  if(amt < 0.005) line = `Pas de virement en ${esc(ce)}`;
+  else { const from = c.diff>0 ? N.b : N.a, to = c.diff>0 ? N.a : N.b; line = `Début ${esc(ce)}, ${esc(from)} vire <span class="amt num">${eur(amt)}</span> à ${esc(to)}`; }
   const L = (label, val, op='') => `<div class="line"><span>${op?`<span class="op">${op}</span>`:''}${label}</span><span>${eur(val)}</span></div>`;
-  const person = (key, name, pct_, part, ch, dp, ai, paid) => {
-    const d = paid - part;
-    const res = Math.abs(d) < 0.005 ? `<div class="res">Pile sa part</div>`
-      : d > 0 ? `<div class="res plus">A payé ${eur(d)} de trop</div>`
-              : `<div class="res minus">Doit encore ${eur(-d)}</div>`;
-    return `<div class="person">
-      <div class="who"><i style="background:var(--${key})"></i>${esc(name)}</div>
-      ${L(`Sa part (${pct(pct_)})`, part)}
-      ${ch?L('Prélevé sur son compte', ch):''}
-      ${dp?L('Dépenses du mois', dp):''}
-      ${ai?L('Aides reçues', -ai):''}
-      ${L('Total payé', paid)}
-      ${res}
-    </div>`;
-  };
+  const T = (label, txt, cls='') => `<div class="line ${cls}"><span>${label}</span><span>${txt}</span></div>`;
   hero.innerHTML = `
     <div class="hero-top">
-      <div class="eyebrow">En ${esc($('#monthLabel').textContent)}</div>
+      <div class="eyebrow">Le virement ${de(ce)}</div>
       <div class="transfer">${line}</div>
-      <p class="transfer-note">${note}</p>
+      <p class="transfer-note">Il couvre les charges ${de(ce)} et les dépenses ${de(avant)}. Une fois fait, on est quittes.</p>
       <button class="toggle" id="vire" aria-pressed="${month.vire?'true':'false'}" ${canWrite?'':'disabled'}>${month.vire?'Virement fait':'J\'ai fait le virement'}</button>
     </div>
     <div class="calc">
       <div>
-        <h3>Ce qu'on paie ensemble</h3>
+        <h3>D’où vient ce montant</h3>
+        <div class="lines num">
+          ${T(`Charges ${de(ce)}`, qui(c.diffFixe))}
+          ${T(`Dépenses ${de(avant)} (${eur(c.avant.total)})`, qui(c.avant.diff))}
+          ${T('Au total', qui(c.diff), 'total')}
+        </div>
+      </div>
+      <div>
+        <h3>Les charges ${de(ce)}</h3>
         <div class="lines num">
           ${L('Charges fixes', c.fixe)}
           ${L('Moins les aides', c.aides, '−')}
-          ${c.communs?L('Plus les dépenses du mois', c.communs, '+'):''}
           <div class="line total"><span><span class="op">=</span>Reste à payer à deux</span><span>${eur(c.total)}</span></div>
+          ${L(`Part ${de(N.a)} (${pct(c.pa)})`, c.partA)}
+          ${L(`Déjà prélevé chez ${esc(N.a)}, aides déduites`, c.paidA)}
+          ${L(`Part ${de(N.b)} (${pct(c.pb)})`, c.partB)}
+          ${L(`Déjà prélevé chez ${esc(N.b)}, aides déduites`, c.paidB)}
         </div>
       </div>
       <div>
@@ -341,18 +352,15 @@ function renderSummary(){
         </div>
         <div class="bar" aria-hidden="true"><i style="width:${c.pa*100}%;background:var(--a)"></i><i style="width:${c.pb*100}%;background:var(--b)"></i></div>
       </div>
-      <div>
-        <h3>Où on en est</h3>
-        <div class="people num">
-          ${person('a', N.a, c.pa, c.partA, chA, dpA, aiA, c.paidA)}
-          ${person('b', N.b, c.pb, c.partB, chB, dpB, aiB, c.paidB)}
-        </div>
+      <div class="encours">
+        <h3>Les dépenses ${de(ce)}, en cours</h3>
+        <p class="hint" style="margin:0">${c.enCours.total ? `${eur(c.enCours.total)} pour l’instant (${esc(N.a)} ${eur(c.enCours.paidA)}, ${esc(N.b)} ${eur(c.enCours.paidB)}). À ce stade, ${qui(c.enCours.diff)}. Ce sera réglé avec le virement de début ${esc(apres)}.` : `Rien pour l’instant. Les courses et les dépenses ${de(ce)} seront réglées avec le virement de début ${esc(apres)}.`}</p>
       </div>
     </div>`;
   // Un mois réglé garde ses montants, même si les montants habituels changent plus tard
   const v = $('#vire'); if(v) v.onclick = ()=>{ month.vire = !month.vire; if(month.vire){ FIXED.forEach(ensureOwn); confetti(); } saveMonth(true); renderSummary(); };
   const set = (id, v) => { const el=$(id); if(el) el.textContent = eur(v); };
-  set('#t-dep', c.communs); set('#t-ch', c.fixe); set('#t-ai', c.aides); set('#t-rev', c.Ra+c.Rb);
+  set('#t-dep', c.enCours.total); set('#t-ch', c.fixe); set('#t-ai', c.aides); set('#t-rev', c.Ra+c.Rb);
 }
 
 /* ---------- petite fête quand le virement est fait ---------- */
@@ -462,6 +470,12 @@ function normMonth(d){
 }
 function subMonth(){
   if(unsubMonth) unsubMonth();
+  if(unsubPrev) unsubPrev();
+  prev = {depenses:[], vire:false};
+  unsubPrev = db.doc('mois/'+monthKey(new Date(cur.getFullYear(), cur.getMonth()-1, 1))).onSnapshot(s=>{
+    prev = normMonth(s.exists ? s.data() : null);
+    if(!editing()) renderSummary();
+  }, ()=>{});
   month = {depenses:[], vire:false}; pendingRemoteMonth=null;
   unsubMonth = db.doc('mois/'+monthKey(cur)).onSnapshot(s=>{
     if(s.metadata.hasPendingWrites) return;
