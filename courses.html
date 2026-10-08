@@ -245,6 +245,33 @@ details.later[open] summary{margin-bottom:10px}
 .foot{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;border-top:1px solid var(--line);padding-top:14px}
 #app{display:flex;flex-direction:column;gap:28px}
 @media (prefers-reduced-motion:reduce){.progress i{transition:none}}
+
+/* courses */
+.add-form{display:flex;gap:8px}
+.add-form input{flex:1;min-width:0;font:inherit;font-size:max(17px,1em);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
+.add-form input:focus{outline:none;border-color:var(--green)}
+.add-form button{border:0;background:var(--green);color:#fff;border-radius:10px;padding:0 18px;font:inherit;font-size:17px}
+.rayon h3{font-size:16px;font-weight:500;font-style:italic;color:var(--green);margin:0 0 2px}
+.c-list{list-style:none;margin:0;padding:0}
+.c-item{display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.c-item:last-child{border-bottom:0}
+.c-item .txt{flex:1;min-width:0;display:flex;flex-direction:column;cursor:pointer}
+.c-item .name{font-size:19px;line-height:1.25}
+.c-item .meta{font-size:14px;color:var(--faint);font-style:italic}
+.c-item.pris .name{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line)}
+.c-item .x{border:0;background:transparent;color:var(--faint);font-size:20px;width:32px;height:32px;border-radius:50%;flex:none}
+.c-item .x:hover{color:var(--red);background:#f6e6e2}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips button{border:1px dashed var(--green);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:15px}
+.chips button:hover{border-style:solid}
+.finish{display:flex;flex-direction:column;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.finish .row2{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.finish input{width:120px;font:inherit;font-size:max(17px,1em);text-align:right;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.finish select{font:inherit;font-size:max(16px,1em);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.finish input:focus,.finish select:focus{outline:none;border-color:var(--green)}
+.btn{border:0;background:var(--green);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-size:16px}
+.btn.ghost{background:transparent;color:var(--green);border:1px solid var(--green)}
+#app{display:flex;flex-direction:column;gap:26px}
 </style>
 </head>
 <body>
@@ -256,24 +283,21 @@ details.later[open] summary{margin-bottom:10px}
 </svg>
 </div>
 <div class="wrap">
-  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html" aria-current="page">Ménage</a><a href="courses.html">Courses</a></nav>
+  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html">Ménage</a><a href="courses.html" aria-current="page">Courses</a></nav>
   <header>
     <div>
-      <h1>Le ménage</h1>
-      <div class="sub">Ce qui est à faire, sans attendre que ce soit sale</div>
+      <h1>Les courses</h1>
+      <div class="sub">Ce qui manque à la maison, rangé par rayon</div>
     </div>
   </header>
   <div id="app"><div class="notice"><p class="muted" style="margin:0">Chargement</p></div></div>
   <div class="status" id="status" aria-live="polite"></div>
   <button class="link" id="logout" hidden style="align-self:flex-start">Se déconnecter</button>
 </div>
-<div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="undo">Annuler</button></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
-<script src="planning.js"></script>
 <script src="firebase-config.js"></script>
 <script>firebase.initializeApp(window.FIREBASE_CONFIG);</script>
 <script>
@@ -282,341 +306,134 @@ const $ = s => document.querySelector(s);
 const app = $('#app');
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const flash = m => { $('#status').textContent = m; };
-const P = window.Planning;
-const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
-const isoDay = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const COURT = ['D','L','M','M','J','V','S'];
+const sansAccent = s => s.toLowerCase().replace(/œ/g,'oe').replace(/æ/g,'ae').normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
 
-// Liste de départ, modifiable ensuite
-const DEPART = [
-  ['Sortir les poubelles','Cuisine',2], ['Plan de travail','Cuisine',1],
-  ['Ranger le salon','Salon',2], ['Passer l’aspirateur','Partout',7], ['Laver les sols','Partout',14], ['Faire la poussière','Partout',14],
-  ['Lavabo, douche et miroir','Salle de bain',7], ['Toilettes','Salle de bain',7], ['Changer les serviettes','Salle de bain',7],
-  ['Plaques de cuisson','Cuisine',7], ['Micro-ondes','Cuisine',14], ['Vider et nettoyer le frigo','Cuisine',30],
-  ['Four','Cuisine',60], ['Filtre de la hotte','Cuisine',90], ['Changer les draps','Chambre',14],
-  ['Joint et filtre du lave-linge','Buanderie',60], ['Vitres','Partout',60]
+// Rayons, dans l'ordre d'un magasin, avec les mots qui permettent de deviner
+const RAYONS = [
+  ['Fruits et légumes', 'pomme poire banane orange citron fraise raisin kiwi melon pasteque peche abricot fruit legume salade tomate carotte courgette aubergine poivron oignon ail echalote pomme de terre patate champignon concombre avocat brocoli chou epinard haricot poireau radis persil basilic coriandre menthe herbes'],
+  ['Boulangerie', 'pain baguette brioche croissant viennoiserie pain de mie biscotte'],
+  ['Viande et poisson', 'poulet boeuf steak hache porc jambon lardon saucisse viande dinde veau agneau poisson saumon thon cabillaud crevette merguez escalope'],
+  ['Frais', 'lait beurre creme fromage yaourt yogourt oeuf oeufs emmental mozzarella comte raclette skyr dessert compote fraiche pate a tarte pate feuilletee gnocchi'],
+  ['Épicerie', 'pates riz semoule farine sucre sel poivre huile vinaigre moutarde mayonnaise ketchup sauce conserve thon en boite soupe cereales cafe the chocolat confiture miel nutella biscuit gateau chips apero lentille pois chiche quinoa epice bouillon levure'],
+  ['Surgelés', 'surgele glace pizza frites nuggets poelee'],
+  ['Boissons', 'eau coca soda jus biere vin sirop limonade boisson'],
+  ['Hygiène', 'shampoing shampooing gel douche savon dentifrice brosse a dents deodorant papier toilette pq coton mouchoir rasoir creme protection serviette hygienique tampon'],
+  ['Entretien', 'lessive adoucissant liquide vaisselle pastille lave vaisselle eponge sac poubelle sacs poubelle javel nettoyant essuie tout sopalin film alimentaire aluminium papier cuisson produit vitre wc'],
+  ['Autre', '']
 ];
-// Tâches qui s'enchaînent : [nom, pièce, fréquence en jours ou null, délai après la précédente]
-const SUITES = {
-  linge: {titre:'Le linge : lancer, étendre, ranger', etapes:[['Lancer une machine','Buanderie',3,null],['Étendre le linge','Buanderie',null,0],['Ramasser et ranger le linge','Chambre',null,3]]},
-  lv: {titre:'Le lave-vaisselle : lancer, vider', etapes:[['Lancer le lave-vaisselle','Cuisine',1,null],['Vider le lave-vaisselle','Cuisine',null,0]]}
-};
-// Idées proposées dans « Modifier la liste »
-const IDEES = [
-  ['Sortir les poubelles','Cuisine',2], ['Sortir le tri','Cuisine',7], ['Vaisselle et plan de travail','Cuisine',1],
-  ['Ranger le salon','Salon',2],
-  ['Faire le lit','Chambre',1], ['Arroser les plantes','Partout',4], ['Courses','Cuisine',7]
-];
+function devinerRayon(nom){
+  const n = ' ' + sansAccent(nom).replace(/[^a-z ]/g,' ') + ' ';
+  let meilleur = 'Autre', long = 0;
+  // on teste aussi les expressions de plusieurs mots (pomme de terre, liquide vaisselle)
+  for(const [r, liste] of RAYONS){
+    if(!liste) continue;
+    const mots = liste.split(' ');
+    for(let i = 0; i < mots.length; i++){
+      for(let k = 3; k >= 1; k--){
+        const expr = mots.slice(i, i+k).join(' ');
+        if(expr && (n.includes(' ' + expr + ' ') || n.includes(' ' + expr + 's '))){ if(expr.length > long){ long = expr.length; meilleur = r; } }
+      }
+    }
+  }
+  return meilleur;
+}
+const ordreRayon = r => { const i = RAYONS.findIndex(x => x[0] === r); return i < 0 ? 99 : i; };
 
 const auth = firebase.auth(), fs = firebase.firestore();
 try { await fs.enablePersistence({synchronizeTabs:true}); } catch(e) {}
 auth.getRedirectResult().catch(()=>{});
-const col = fs.collection('menage');
-const hist = fs.collection('menage_historique');
+const col = fs.collection('courses');
+const freq = fs.collection('courses_frequents');
 
-let tasks = [], parId = {}, histo = [], loaded = false, editing = false;
-let moi = null;            // {uid, nom, cle}
+let items = [], frequents = [], loaded = false, moi = null, finir = false;
 let personnes = {a:'Personne A', b:'Personne B'};
 
-/* ---------- affichage ---------- */
-const jamais = t => !t.dernier && !t.apres && !(t.joursSemaine||[]).length;
-const ilYa = j => { const il = Math.round((today() - P.lireJour(j))/86400000); return il===0?'aujourd’hui':il===1?'hier':`il y a ${il} jours`; };
-const qui = t => t.par ? ` par <b class="who-${t.cle||''}">${esc(t.par)}</b>` : '';
-
-// Une ligne à cocher. variante : 'jour' (aujourd'hui), 'fait', 'bientot', 'jamais'
-function ligne(t, variante){
-  const n = P.dans(t, today(), parId);
-  let sous = '';
-  if(variante === 'jour'){
-    if(n < 0) sous = `<span class="late">en retard de ${-n} jour${-n>1?'s':''}</span>`;
-    else if(t.apres) sous = 'suite de « ' + esc((parId[t.apres]||{}).nom||'') + ' »';
-    else if(t.dernier) sous = 'dernière fois ' + ilYa(t.dernier) + qui(t);
-  } else if(variante === 'fait'){
-    sous = 'fait' + qui(t);
-  } else if(variante === 'jamais'){
-    sous = esc(P.frequence(t, parId));
-  }
-  const coche = variante === 'fait';
-  return `<li class="item ${variante}">
-    <button class="check${coche?' on':''}" data-done="${t.id}" aria-pressed="${coche?'true':'false'}" aria-label="${coche?'Décocher':'Marquer comme fait'} : ${esc(t.nom)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
-    <div class="txt"><span class="name">${esc(t.nom)}</span>${sous?`<span class="meta">${sous}</span>`:''}</div>
-  </li>`;
-}
-
-function histoHtml(){
-  const debut = new Date(today().getFullYear(), today().getMonth(), 1);
-  const cpt = {a:0, b:0};
-  histo.filter(h => P.lireJour(h.jour) >= debut).forEach(h => { if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
-  const mois = debut.toLocaleDateString('fr-FR',{month:'long'});
-  return `<details class="bloc histo">
-    <summary><span>En ${mois}</span><span class="tally"><b class="who-a">${esc(personnes.a)}</b> ${cpt.a} · <b class="who-b">${esc(personnes.b)}</b> ${cpt.b}</span></summary>
-    ${histo.length ? `<ul class="hlist">${histo.slice(0,15).map(h => `<li><b class="who-${h.cle||''}">${esc(h.par)}</b> ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}<small>${ilYa(h.jour)}</small></li>`).join('')}</ul>` : '<p class="hint">Rien de noté pour l’instant.</p>'}
-  </details>`;
-}
-
-function notifHtml(){
-  const ok = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
-  const vapid = window.FIREBASE_VAPID_KEY && !/A_REMPLIR/.test(window.FIREBASE_VAPID_KEY);
-  if(!vapid) return '';
-  let actif = false; try{ actif = ok && Notification.permission === 'granted' && localStorage.getItem('notifOK'); }catch(e){}
-  if(actif) return `<span class="hint">Rappel du soir activé</span>`;
-  if(!ok) return '';
-  return `<button class="link" id="notif">Activer le rappel du soir</button>`;
+function ilYa(ms){
+  const min = Math.round((Date.now() - ms)/60000);
+  if(min < 1) return 'à l’instant'; if(min < 60) return `il y a ${min} min`;
+  const h = Math.round(min/60); if(h < 24) return `il y a ${h} h`;
+  const j = Math.round(h/24); return j === 1 ? 'hier' : `il y a ${j} jours`;
 }
 
 function render(){
   if(!loaded || !moi) return;
-  if(!tasks.length){
-    app.innerHTML = `<div class="notice"><h2>Pas encore de tâches</h2>
-      <p class="muted" style="margin:0">Je peux mettre une liste de départ avec les tâches les plus courantes. Vous l’ajusterez ensuite.</p>
-      <button class="primary" id="seed">Mettre la liste de départ</button></div>`;
-    $('#seed').onclick = seed; return;
-  }
-  if(editing) return renderEdit();
-
-  const auj = isoDay(today());
-  const tri = (a,b) => a.n - b.n || a.t.nom.localeCompare(b.t.nom);
-  const tout = tasks.map(t => ({t, n: P.dans(t, today(), parId)}));
-  const faits = tout.filter(x => x.t.dernier === auj);
-  const reste = tout.filter(x => x.t.dernier !== auj);
-  const jour = reste.filter(x => !jamais(x.t) && x.n <= 0).sort(tri);
-  const neuves = reste.filter(x => jamais(x.t)).sort((a,b)=>a.t.nom.localeCompare(b.t.nom));
-  const bientot = reste.filter(x => !jamais(x.t) && x.n >= 1 && x.n <= 7).sort(tri);
-
-  // Les prochains jours, regroupés par date
-  const parJour = {};
-  bientot.forEach(x => { (parJour[x.n] = parJour[x.n] || []).push(x.t); });
-  const nomJour = n => { if(n === 1) return 'Demain'; const d = new Date(today()); d.setDate(d.getDate()+n); const s = d.toLocaleDateString('fr-FR',{weekday:'long'}); return s.charAt(0).toUpperCase()+s.slice(1); };
-
-  const dateTxt = (() => { const s = today().toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'}); return s.charAt(0).toUpperCase()+s.slice(1); })();
-  const total = jour.length + faits.length;
+  const aPrendre = items.filter(x => !x.pris), pris = items.filter(x => x.pris);
+  const parRayon = {};
+  aPrendre.forEach(x => { (parRayon[x.rayon || 'Autre'] = parRayon[x.rayon || 'Autre'] || []).push(x); });
+  const dejaLa = new Set(items.map(x => sansAccent(x.nom)));
+  const idees = frequents.filter(f => !dejaLa.has(f.id)).slice(0, 12);
+  const ligne = x => `<li class="c-item${x.pris?' pris':''}">
+      <button class="check${x.pris?' on':''}" data-pris="${x.id}" aria-pressed="${x.pris?'true':'false'}" aria-label="${x.pris?'Remettre dans la liste':'Mis dans le panier'} : ${esc(x.nom)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
+      <div class="txt" data-pris="${x.id}"><span class="name">${esc(x.nom)}</span><span class="meta">${x.par ? 'ajouté par ' + esc(personnes[x.cle] || x.par) : ''}${x.ts && x.ts.toMillis ? ' · ' + ilYa(x.ts.toMillis()) : ''}</span></div>
+      <button class="x" data-suppr="${x.id}" aria-label="Retirer ${esc(x.nom)}">×</button>
+    </li>`;
 
   app.innerHTML = `
-  <section class="today-block">
-    <div class="day-head"><h2>Aujourd’hui</h2><span class="date">${dateTxt}</span></div>
-    ${total ? `<div class="progress" aria-hidden="true"><i style="width:${Math.round(faits.length/total*100)}%"></i></div>
-      <p class="hint">${jour.length ? `${faits.length} sur ${total} fait${faits.length>1?'s':''}` : 'Tout est fait pour aujourd’hui.'}</p>` : ''}
-    ${jour.length ? `<ul class="list">${jour.map(x => ligne(x.t,'jour')).join('')}</ul>` : (faits.length ? '' : '<p class="calm">Rien à faire aujourd’hui.</p>')}
-    ${faits.length ? `<ul class="list done-list">${faits.map(x => ligne(x.t,'fait')).join('')}</ul>` : ''}
-  </section>
+    <form class="add-form" id="ajout" autocomplete="off">
+      <input id="nouveau" placeholder="Ajouter un article, ex. 2 baguettes" aria-label="Article à ajouter" enterkeyhint="done">
+      <button type="submit">Ajouter</button>
+    </form>
 
-  ${Object.keys(parJour).length ? `<section class="next-block">
-    <h3>Les prochains jours</h3>
-    ${Object.keys(parJour).map(Number).sort((a,b)=>a-b).map(n => `<div class="next-day"><span class="dn">${nomJour(n)}</span><span class="dt">${parJour[n].map(t=>esc(t.nom)).join(', ')}</span></div>`).join('')}
-  </section>` : ''}
+    ${aPrendre.length ? Object.keys(parRayon).sort((a,b)=>ordreRayon(a)-ordreRayon(b)).map(r => `<section class="rayon"><h3>${esc(r)}</h3><ul class="c-list">${parRayon[r].sort((a,b)=>a.nom.localeCompare(b.nom)).map(ligne).join('')}</ul></section>`).join('')
+      : `<p class="calm">${pris.length ? 'Tout est dans le panier.' : 'La liste est vide.'}</p>`}
 
-  ${neuves.length ? `<details class="bloc">
-    <summary><span>Pas encore faites</span><span class="tally">${neuves.length}</span></summary>
-    <p class="hint">Cochez-les la première fois que vous les faites, elles rentreront ensuite dans le rythme.</p>
-    <ul class="list small">${neuves.map(x => ligne(x.t,'jamais')).join('')}</ul>
-  </details>` : ''}
+    ${pris.length ? `<section class="rayon"><h3>Dans le panier (${pris.length})</h3><ul class="c-list">${pris.map(ligne).join('')}</ul></section>
+      ${finir ? `<div class="finish">
+        <strong>Fin des courses</strong>
+        <p class="hint" style="margin:0">Le montant du ticket part dans les dépenses du mois, partagé selon vos salaires. Laisse vide si ce n’est pas une dépense commune.</p>
+        <div class="row2"><input id="montant" inputmode="decimal" placeholder="0,00" aria-label="Montant du ticket"> <span>€ payé par</span>
+          <select id="payeur" aria-label="Payé par"><option value="a"${moi.cle==='a'?' selected':''}>${esc(personnes.a)}</option><option value="b"${moi.cle==='b'?' selected':''}>${esc(personnes.b)}</option></select></div>
+        <div class="row2"><button class="btn" id="valider">Terminer</button><button class="btn ghost" id="annulerFin">Pas encore</button></div>
+      </div>` : `<button class="btn" id="fin" style="align-self:flex-start">J’ai fini les courses</button>`}` : ''}
 
-  ${histoHtml()}
+    ${idees.length ? `<section><h3 style="font-size:16px;font-weight:500;font-style:italic;color:var(--green);margin:0 0 8px">Souvent achetés</h3>
+      <div class="chips">${idees.map(f => `<button data-idee="${esc(f.nom)}">${esc(f.nom)}</button>`).join('')}</div></section>` : ''}
 
-  <div class="foot">
-    <span class="hint">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b></span>
-    <button class="link" id="edit">Modifier la liste</button>
-    ${notifHtml()}
-  </div>`;
-  $('#edit').onclick = () => { editing = true; render(); };
-  const nb = $('#notif'); if(nb) nb.onclick = activerNotifs;
+    <div class="foot"><span class="hint">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b></span></div>`;
+
+  $('#ajout').onsubmit = e => { e.preventDefault(); const v = $('#nouveau').value.trim(); if(v){ ajouter(v); $('#nouveau').value = ''; $('#nouveau').focus(); } };
+  const f = $('#fin'); if(f) f.onclick = () => { finir = true; render(); const m = $('#montant'); if(m) m.focus(); };
+  const a = $('#annulerFin'); if(a) a.onclick = () => { finir = false; render(); };
+  const v = $('#valider'); if(v) v.onclick = terminer;
 }
 
-function freqHtml(t){
-  const js = Array.isArray(t.joursSemaine) && t.joursSemaine.length ? t.joursSemaine : null;
-  const n = t.jours || 7;
-  const u = t.apres ? 'a' : js ? 'j' : n % 30 === 0 ? 30 : n % 7 === 0 ? 7 : 1;
-  const opts = [['1','jours'],['7','semaines'],['30','mois'],['j','jours précis'],['a','après une tâche']];
-  const autres = tasks.filter(x => x.id !== t.id).sort((a,b)=>a.nom.localeCompare(b.nom));
-  return `<span class="freq">
-    <span class="every"${(js||t.apres)?' hidden':''}>tous les <input data-f="n" inputmode="numeric" value="${(js||t.apres)?1:n/u}" aria-label="Nombre"></span>
-    <span class="after"${t.apres?'':' hidden'}><select data-f="apres" aria-label="Après quelle tâche">${autres.map(x=>`<option value="${x.id}"${x.id===t.apres?' selected':''}>${esc(x.nom)}</option>`).join('')}</select>
-      <select data-f="delai" aria-label="Quand">${[[0,'le jour même'],[1,'le lendemain'],[2,'2 jours après'],[3,'3 jours après']].map(([v,l])=>`<option value="${v}"${(t.delai||0)===v?' selected':''}>${l}</option>`).join('')}</select></span>
-    <select data-f="u" aria-label="Fréquence">${opts.map(([v,l])=>`<option value="${v}"${String(u)===v?' selected':''}>${l}</option>`).join('')}</select>
-    <span class="days"${(js && !t.apres)?'':' hidden'}>${[1,2,3,4,5,6,0].map(d=>`<button type="button" class="day${js&&js.includes(d)?' on':''}" data-day="${d}" aria-pressed="${js&&js.includes(d)?'true':'false'}" aria-label="${P.NOMS_JOURS[d]}">${COURT[d]}</button>`).join('')}</span>
-  </span>`;
+async function ajouter(nom){
+  nom = nom.charAt(0).toUpperCase() + nom.slice(1);
+  if(items.some(x => !x.pris && sansAccent(x.nom) === sansAccent(nom))){ flash(`${nom} est déjà dans la liste.`); return; }
+  await col.add({nom, rayon: devinerRayon(nom), pris:false, par: moi.nom, cle: moi.cle, ts: firebase.firestore.FieldValue.serverTimestamp()});
 }
 
-function renderEdit(){
-  const noms = new Set(tasks.map(t => t.nom.toLowerCase()));
-  const idees = IDEES.filter(([n]) => !noms.has(n.toLowerCase()));
-  app.innerHTML = `<section class="group">
-    <div class="sec-head"><h2>Modifier la liste</h2></div>
-    <p class="hint" style="margin:0 0 10px">Tout s’enregistre au fur et à mesure. Pour les poubelles, choisis « jours précis » et coche les jours où il faut les sortir.</p>
-    <div class="tasks">${tasks.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(t => `<div class="edit-row" data-id="${t.id}">
-      <input class="n" data-f="nom" value="${esc(t.nom)}" aria-label="Tâche">
-      ${freqHtml(t)}
-      <button class="del" data-del="${t.id}" aria-label="Supprimer ${esc(t.nom)}">×</button></div>`).join('')}</div>
-    <div class="toolbar" style="margin-top:12px"><button class="add" id="addTask">Ajouter une tâche</button><button class="link" id="back">Terminé</button></div>
-    <div class="idees"><p class="hint" style="margin:14px 0 8px">Tâches qui s\u2019enchaînent</p>${Object.entries(SUITES).filter(([k,v]) => !v.etapes.every(([n]) => noms.has(n.toLowerCase())) || !tasks.some(t=>t.apres && v.etapes.some(([n])=>n.toLowerCase()===t.nom.toLowerCase()))).map(([k,v])=>`<button class="chip" data-suite="${k}">${esc(v.titre)}</button>`).join('') || '<p class="hint" style="margin:0">Déjà en place.</p>'}</div>
-    ${idees.length ? `<div class="idees"><p class="hint" style="margin:14px 0 8px">Idées de tâches fréquentes</p>${idees.map(([n,p,j],i)=>`<button class="chip" data-idee="${i}">${esc(n)} <small>${esc(P.frequence({jours:j}))}</small></button>`).join('')}</div>` : ''}
-  </section>`;
-  $('#back').onclick = () => { editing = false; render(); };
-  $('#addTask').onclick = () => col.add({nom:'Nouvelle tâche', piece:'', jours:7, joursSemaine:[], dernier:null, par:'', cle:''});
-  app.querySelectorAll('[data-suite]').forEach(b => b.onclick = () => ajouterSuite(SUITES[b.dataset.suite]));
-  app.querySelectorAll('[data-idee]').forEach(b => b.onclick = () => { const [nom,piece,jours] = idees[+b.dataset.idee]; col.add({nom, piece, jours, joursSemaine:[], dernier:null, par:'', cle:''}); });
-}
-
-/* ---------- modifications ---------- */
-const timers = {};
-function sauverLigne(row){
-  const id = row.dataset.id;
-  clearTimeout(timers[id]);
-  timers[id] = setTimeout(() => {
-    const u = row.querySelector('[data-f="u"]').value;
-    const maj = { nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom' };
-    if(u === 'a'){
-      maj.apres = row.querySelector('[data-f="apres"]').value || null;
-      maj.delai = parseInt(row.querySelector('[data-f="delai"]').value,10) || 0;
-      maj.joursSemaine = [];
-    } else if(u === 'j'){
-      maj.joursSemaine = [...row.querySelectorAll('.day.on')].map(b => +b.dataset.day); maj.apres = null;
-    } else {
-      maj.apres = null;
-      const n = Math.max(1, parseInt(row.querySelector('[data-f="n"]').value,10) || 1);
-      maj.jours = n * parseInt(u,10); maj.joursSemaine = [];
-    }
-    col.doc(id).update(maj).then(()=>flash('Enregistré')).catch(()=>flash("L'enregistrement a échoué."));
-  }, 500);
-}
-app.addEventListener('input', e => { const row = e.target.closest('.edit-row'); if(row && e.target.matches('input')) sauverLigne(row); });
-app.addEventListener('change', e => {
-  const row = e.target.closest('.edit-row'); if(!row || !e.target.matches('select')) return;
-  if(e.target.dataset.f === 'u'){
-    const v = e.target.value, precis = v === 'j', apres = v === 'a';
-    row.querySelector('.every').hidden = precis || apres; row.querySelector('.days').hidden = !precis; row.querySelector('.after').hidden = !apres;
-    if(precis && !row.querySelector('.day.on')) return; // on attend qu'un jour soit coché
-  }
-  sauverLigne(row);
-});
-
-let toastTimer = null;
-app.addEventListener('click', async e => {
-  const day = e.target.closest('[data-day]');
-  if(day){ day.classList.toggle('on'); day.setAttribute('aria-pressed', day.classList.contains('on')); sauverLigne(day.closest('.edit-row')); return; }
-  const d = e.target.closest('[data-done]');
-  if(d){
-    const t = tasks.find(x => x.id === d.dataset.done); if(!t || d.dataset.busy) return;
-    d.dataset.busy = '1';
-    try{
-      if(t.dernier === isoDay(today())) await decocher(t);   // retoucher le rond : on annule
-      else await cocher(t, d);
-    } finally { delete d.dataset.busy; }
-    return;
-  }
-  const del = e.target.closest('[data-del]');
-  if(del){
-    if(del.dataset.confirm){ await col.doc(del.dataset.del).delete(); return; }
-    del.dataset.confirm = '1'; del.textContent = 'Sûr ?'; del.style.width = 'auto'; del.style.color = 'var(--red)';
-    setTimeout(()=>{ if(document.body.contains(del)){ delete del.dataset.confirm; del.textContent='×'; del.style.width=''; del.style.color=''; } }, 3000);
-  }
-});
-// Cocher : on garde l'état d'avant dans la tâche pour pouvoir décocher, même plus tard ou depuis l'autre téléphone
-async function cocher(t, bouton){
-  if(bouton) bouton.classList.add('on');
-  const jour = isoDay(today());
-  const h = hist.doc();
+async function terminer(){
+  const montant = parseFloat(String($('#montant').value).replace(/\s/g,'').replace(',','.'));
+  const payeur = $('#payeur').value;
+  const pris = items.filter(x => x.pris);
   const b = fs.batch();
-  b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle,
-    precedent: {dernier: t.dernier||null, par: t.par||'', cle: t.cle||''}, histId: h.id});
-  b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, jour, ts: firebase.firestore.FieldValue.serverTimestamp()});
-  await b.commit();
-  dernierCoche = t.id;
-  $('#toastMsg').textContent = `${t.nom} : c\u2019est noté`;
-  $('#toast').hidden = false; clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { $('#toast').hidden = true; dernierCoche = null; }, 5000);
-}
-async function decocher(t){
-  const p = t.precedent || {dernier:null, par:'', cle:''};
-  const b = fs.batch();
-  b.update(col.doc(t.id), {dernier: p.dernier||null, par: p.par||'', cle: p.cle||'', precedent: null, histId: null});
-  if(t.histId) b.delete(hist.doc(t.histId));
-  else { // ancienne coche sans référence : on retire l'entrée du jour dans l'historique
-    const q = await hist.where('tache','==',t.id).where('jour','==',t.dernier).get().catch(()=>null);
-    if(q) q.docs.forEach(x => b.delete(x.ref));
-  }
-  await b.commit();
-  $('#toast').hidden = true; dernierCoche = null;
-  flash(`${t.nom} : décoché`);
-}
-let dernierCoche = null;
-$('#undo').onclick = async () => {
-  const t = tasks.find(x => x.id === dernierCoche);
-  if(t) await decocher(t);
-};
-
-// Crée (ou relie si elles existent déjà) les tâches d'une suite
-async function ajouterSuite(suite){
-  const b = fs.batch();
-  let precedent = null;
-  for(const [nom, piece, jours, delai] of suite.etapes){
-    const existe = tasks.find(t => t.nom.toLowerCase() === nom.toLowerCase());
-    const ref = existe ? col.doc(existe.id) : col.doc();
-    const champs = precedent ? {apres: precedent, delai, joursSemaine: []} : {jours, apres: null, joursSemaine: []};
-    if(existe) b.update(ref, champs);
-    else b.set(ref, {nom, piece, jours: jours || 7, dernier: null, par: '', cle: '', ...champs});
-    precedent = ref.id;
-  }
-  await b.commit();
-}
-
-// Une seule fois : met en place le linge et le lave-vaisselle chez ceux qui avaient l'ancienne liste
-let suitesFaites = false;
-async function mettreSuites(){
-  suitesFaites = true;
-  try{
-    const ref = fs.doc('reglages/menage');
-    const r = (await ref.get()).data() || {};
-    const maj = {};
-    for(const k of ['linge','lv']){
-      if(r[k]) continue;
-      const dernier = SUITES[k].etapes[SUITES[k].etapes.length-1][0].toLowerCase();
-      if(!tasks.some(t => t.nom.toLowerCase() === dernier)) await ajouterSuite(SUITES[k]);
-      maj[k] = true;
-    }
-    if(Object.keys(maj).length) await ref.set(maj, {merge:true});
-  }catch(e){ console.error(e); }
-}
-
-async function seed(){
-  const b = fs.batch();
-  DEPART.forEach(([nom,piece,jours]) => b.set(col.doc(), {nom, piece, jours, joursSemaine:[], dernier:null, par:'', cle:''}));
-  await b.commit();
-  await ajouterSuite(SUITES.lv); await ajouterSuite(SUITES.linge);
-  await fs.doc('reglages/menage').set({linge:true, lv:true}, {merge:true});
-}
-
-/* ---------- notifications ---------- */
-async function activerNotifs(){
-  try{
-    const perm = await Notification.requestPermission();
-    if(perm !== 'granted'){ flash('Notifications refusées. Tu peux les autoriser plus tard dans les réglages du téléphone.'); return; }
-    const reg = await navigator.serviceWorker.register('sw.js');
-    await navigator.serviceWorker.ready;
-    const token = await firebase.messaging().getToken({vapidKey: window.FIREBASE_VAPID_KEY, serviceWorkerRegistration: reg});
-    if(!token) throw new Error('pas de jeton');
-    await fs.collection('appareils').doc(token).set({uid: moi.uid, nom: moi.nom, maj: firebase.firestore.FieldValue.serverTimestamp()});
-    try{ localStorage.setItem('notifOK','1'); }catch(e){}
-    flash('C’est activé. Tu recevras un rappel le soir quand il y a des choses à faire.');
-    render();
-  }catch(err){
-    console.error(err);
-    flash("L'activation n'a pas marché. Réessaie depuis l'appli installée sur l'écran d'accueil.");
-  }
-}
-
-/* ---------- qui es-tu ---------- */
-function choisirNom(u){
-  app.innerHTML = `<div class="notice"><h2>Qui es-tu ?</h2>
-    <p class="muted" style="margin:0">Pour savoir qui a fait quoi. Je ne te le demanderai qu’une fois.</p>
-    <div class="toolbar"><button class="primary" data-cle="a">${esc(personnes.a)}</button><button class="primary" data-cle="b">${esc(personnes.b)}</button></div></div>`;
-  app.querySelectorAll('[data-cle]').forEach(b => b.onclick = async () => {
-    const cle = b.dataset.cle;
-    moi = {uid:u.uid, cle, nom:personnes[cle]};
-    await fs.collection('membres').doc(u.uid).set({cle});
-    render();
+  pris.forEach(x => {
+    b.delete(col.doc(x.id));
+    // « 2 baguettes » est retenu comme « Baguettes » dans les articles souvent achetés
+    let base = x.nom.replace(/^\s*\d+([.,]\d+)?\s*(x|kg|g|l|cl|ml|paquets?|boites?|bouteilles?)?\s+/i,'').trim() || x.nom;
+    base = base.charAt(0).toUpperCase() + base.slice(1);
+    const id = sansAccent(base).replace(/[\/.#\[\]]/g,' ').slice(0,100) || 'article';
+    b.set(freq.doc(id), {nom: base, fois: firebase.firestore.FieldValue.increment(1), dernier: firebase.firestore.FieldValue.serverTimestamp()}, {merge:true});
   });
+  if(isFinite(montant) && montant > 0){
+    const d = new Date(), cle = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    const jour = d.toLocaleDateString('fr-FR',{day:'numeric', month:'long'});
+    b.set(fs.doc('mois/' + cle), {depenses: firebase.firestore.FieldValue.arrayUnion({id: Math.random().toString(36).slice(2,9), label: `Courses du ${jour}`, montant: Math.round(montant*100)/100, payeur})}, {merge:true});
+  }
+  await b.commit();
+  finir = false;
+  flash(isFinite(montant) && montant > 0 ? 'Courses terminées, le ticket est ajouté au budget du mois.' : 'Courses terminées.');
 }
+
+app.addEventListener('click', async e => {
+  const p = e.target.closest('[data-pris]');
+  if(p){ const x = items.find(i => i.id === p.dataset.pris); if(x) await col.doc(x.id).update({pris: !x.pris}); return; }
+  const s = e.target.closest('[data-suppr]');
+  if(s){ await col.doc(s.dataset.suppr).delete(); return; }
+  const i = e.target.closest('[data-idee]');
+  if(i){ await ajouter(i.dataset.idee); return; }
+});
 
 function loginBox(){
   app.innerHTML = `<div class="notice"><h2>Connexion</h2>
@@ -631,10 +448,18 @@ function loginBox(){
     });
   };
 }
-
 function refuse(){
   app.innerHTML = `<div class="notice"><h2>Accès refusé</h2><p class="muted" style="margin:0">Ce compte Google n'a pas accès. Connecte toi avec le bon compte.</p><button class="primary" id="out2">Changer de compte</button></div>`;
   $('#out2').onclick = () => auth.signOut().then(()=>location.reload());
+}
+function choisirNom(u){
+  app.innerHTML = `<div class="notice"><h2>Qui es-tu ?</h2>
+    <p class="muted" style="margin:0">Pour savoir qui a ajouté quoi. Je ne te le demanderai qu’une fois.</p>
+    <div class="toolbar"><button class="primary" data-cle="a">${esc(personnes.a)}</button><button class="primary" data-cle="b">${esc(personnes.b)}</button></div></div>`;
+  app.querySelectorAll('[data-cle]').forEach(b => b.onclick = async () => {
+    const cle = b.dataset.cle; moi = {uid:u.uid, cle, nom:personnes[cle]};
+    await fs.collection('membres').doc(u.uid).set({cle}); render();
+  });
 }
 
 let started = false;
@@ -650,34 +475,24 @@ auth.onAuthStateChanged(async u => {
   }catch(e){ return refuse(); }
   if(!moi) choisirNom(u);
   col.onSnapshot(snap => {
-    tasks = snap.docs.map(d => {
-      const t = {id:d.id, ...d.data()};
-      if(t.cle && personnes[t.cle]) t.par = personnes[t.cle]; // le prénom à jour
-      return t;
-    });
-    parId = Object.fromEntries(tasks.map(t => [t.id, t]));
-    if(!suitesFaites && tasks.length) mettreSuites();
+    items = snap.docs.map(d => ({id:d.id, ...d.data()}));
     loaded = true;
-    const a = document.activeElement;
-    if(editing && a && a.closest && a.closest('.edit-row') && snap.docs.length === app.querySelectorAll('.edit-row').length) return;
+    if(document.activeElement && document.activeElement.id === 'montant') return; // on ne coupe pas la saisie du ticket
+    const garde = $('#nouveau') && document.activeElement === $('#nouveau');
+    const val = $('#nouveau') ? $('#nouveau').value : '';
     render();
+    if(garde){ $('#nouveau').value = val; $('#nouveau').focus(); }
   }, refuse);
-  hist.orderBy('ts','desc').limit(200).onSnapshot(snap => {
-    // Retire les doublons (même tâche cochée plusieurs fois le même jour)
-    const vus = new Set();
-    snap.docs.slice().reverse().forEach(d => { const h = d.data(); const k = h.tache+'|'+h.jour; if(vus.has(k)) hist.doc(d.id).delete().catch(()=>{}); else vus.add(k); });
-    histo = snap.docs.filter((d,i,arr) => arr.findIndex(x => x.data().tache===d.data().tache && x.data().jour===d.data().jour) === i).map(d => d.data()).filter(h => h.jour).map(h => ({...h, par: personnes[h.cle] || h.par}));
-    if(!editing) render();
+  freq.orderBy('fois','desc').limit(30).onSnapshot(snap => {
+    frequents = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    if(!(document.activeElement && ['nouveau','montant'].includes(document.activeElement.id))) render();
   }, () => {});
 });
 $('#logout').onclick = () => auth.signOut().then(()=>location.reload());
-// Les échéances se mettent à jour quand on revient sur l'appli un autre jour
-document.addEventListener('visibilitychange', () => { if(!document.hidden && !editing) render(); });
 })();
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  // Quand une nouvelle version de l'appli arrive, on recharge une fois pour l'afficher
   let recharge = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!recharge) { recharge = true; location.reload(); } });
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => {

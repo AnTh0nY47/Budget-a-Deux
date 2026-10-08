@@ -22,6 +22,10 @@ L'onglet Ménage garde la liste des tâches de la maison avec leur fréquence. I
 
 Chaque soir à 18h, une tâche GitHub regarde ce qui est à faire et envoie une notification sur les téléphones qui l'ont activée. Le script est dans le dossier rappel. Il a besoin du secret FIREBASE_SERVICE_ACCOUNT dans les réglages du dépôt, et la clé Web Push du projet doit être mise dans firebase-config.js.
 
+## Les courses
+
+L'onglet Courses est une liste partagée. On tape ce qui manque et l'appli le range tout seul par rayon. En magasin on coche ce qu'on met dans le panier, l'autre le voit en direct. À la fin, on indique le montant du ticket et qui a payé : il part dans les dépenses du mois du budget. Les articles achetés souvent sont proposés pour les rajouter d'un geste.
+
 ## Utilisation
 
 On se connecte avec son compte Google. La première fois, le bouton « Commencer un budget » crée un budget vide à remplir. Ensuite tout se modifie directement sur la page et se met à jour chez l'autre en temps réel.
