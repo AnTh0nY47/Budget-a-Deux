@@ -9,10 +9,10 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Budget">
+<meta name="apple-mobile-web-app-title" content="Chez nous">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="format-detection" content="telephone=no">
-<title>Ménage à deux</title>
+<title>Chez nous</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
@@ -338,7 +338,7 @@ function ligne(t, variante){
   }
   const coche = variante === 'fait';
   return `<li class="item ${variante}">
-    <button class="check${coche?' on':''}" ${coche?'disabled':''} data-done="${t.id}" aria-label="${coche?'Fait':'Marquer comme fait'} : ${esc(t.nom)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
+    <button class="check${coche?' on':''}" data-done="${t.id}" aria-pressed="${coche?'true':'false'}" aria-label="${coche?'Décocher':'Marquer comme fait'} : ${esc(t.nom)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
     <div class="txt"><span class="name">${esc(t.nom)}</span>${sous?`<span class="meta">${sous}</span>`:''}</div>
   </li>`;
 }
@@ -490,26 +490,18 @@ app.addEventListener('change', e => {
   sauverLigne(row);
 });
 
-let annuler = null, toastTimer = null;
+let toastTimer = null;
 app.addEventListener('click', async e => {
   const day = e.target.closest('[data-day]');
   if(day){ day.classList.toggle('on'); day.setAttribute('aria-pressed', day.classList.contains('on')); sauverLigne(day.closest('.edit-row')); return; }
   const d = e.target.closest('[data-done]');
   if(d){
-    const t = tasks.find(x => x.id === d.dataset.done); if(!t || d.disabled) return;
-    if(t.dernier === isoDay(today())) return; // déjà fait aujourd'hui
-    d.disabled = true; d.classList.add('on');
-    const avant = {dernier:t.dernier||null, par:t.par||'', cle:t.cle||''};
-    const jour = isoDay(today());
-    const h = hist.doc();
-    const b = fs.batch();
-    b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle});
-    b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, jour, ts: firebase.firestore.FieldValue.serverTimestamp()});
-    await b.commit();
-    annuler = {id:t.id, avant, hist:h.id};
-    $('#toastMsg').textContent = `${t.nom} : c’est noté`;
-    $('#toast').hidden = false; clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { $('#toast').hidden = true; annuler = null; }, 5000);
+    const t = tasks.find(x => x.id === d.dataset.done); if(!t || d.dataset.busy) return;
+    d.dataset.busy = '1';
+    try{
+      if(t.dernier === isoDay(today())) await decocher(t);   // retoucher le rond : on annule
+      else await cocher(t, d);
+    } finally { delete d.dataset.busy; }
     return;
   }
   const del = e.target.closest('[data-del]');
@@ -519,13 +511,38 @@ app.addEventListener('click', async e => {
     setTimeout(()=>{ if(document.body.contains(del)){ delete del.dataset.confirm; del.textContent='×'; del.style.width=''; del.style.color=''; } }, 3000);
   }
 });
-$('#undo').onclick = async () => {
-  if(!annuler) return;
+// Cocher : on garde l'état d'avant dans la tâche pour pouvoir décocher, même plus tard ou depuis l'autre téléphone
+async function cocher(t, bouton){
+  if(bouton) bouton.classList.add('on');
+  const jour = isoDay(today());
+  const h = hist.doc();
   const b = fs.batch();
-  b.update(col.doc(annuler.id), annuler.avant);
-  b.delete(hist.doc(annuler.hist));
+  b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle,
+    precedent: {dernier: t.dernier||null, par: t.par||'', cle: t.cle||''}, histId: h.id});
+  b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, jour, ts: firebase.firestore.FieldValue.serverTimestamp()});
   await b.commit();
-  annuler = null; $('#toast').hidden = true;
+  dernierCoche = t.id;
+  $('#toastMsg').textContent = `${t.nom} : c\u2019est noté`;
+  $('#toast').hidden = false; clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $('#toast').hidden = true; dernierCoche = null; }, 5000);
+}
+async function decocher(t){
+  const p = t.precedent || {dernier:null, par:'', cle:''};
+  const b = fs.batch();
+  b.update(col.doc(t.id), {dernier: p.dernier||null, par: p.par||'', cle: p.cle||'', precedent: null, histId: null});
+  if(t.histId) b.delete(hist.doc(t.histId));
+  else { // ancienne coche sans référence : on retire l'entrée du jour dans l'historique
+    const q = await hist.where('tache','==',t.id).where('jour','==',t.dernier).get().catch(()=>null);
+    if(q) q.docs.forEach(x => b.delete(x.ref));
+  }
+  await b.commit();
+  $('#toast').hidden = true; dernierCoche = null;
+  flash(`${t.nom} : décoché`);
+}
+let dernierCoche = null;
+$('#undo').onclick = async () => {
+  const t = tasks.find(x => x.id === dernierCoche);
+  if(t) await decocher(t);
 };
 
 // Crée (ou relie si elles existent déjà) les tâches d'une suite
