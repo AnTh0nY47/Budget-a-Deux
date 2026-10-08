@@ -146,6 +146,9 @@ fieldset:disabled .add,fieldset:disabled .del{display:none}
 .task .meta .late{color:var(--red);font-style:normal;font-weight:500}
 .task .meta .today{color:#9a6f05;font-style:normal;font-weight:500}
 .done-btn{border:1px solid var(--green);background:var(--card);color:var(--green);border-radius:999px;padding:7px 16px;font-size:16px;white-space:nowrap}
+.done-tag{color:var(--green);font-size:16px;font-style:italic;padding:7px 4px;white-space:nowrap}
+.task.is-done .name{color:var(--muted)}
+.done-btn:disabled{opacity:.6}
 .done-btn:hover{background:var(--green);color:#fff}
 .task.just .done-btn{background:var(--green-soft);border-color:var(--green-soft)}
 .empty-good{padding:16px 14px;color:var(--muted);font-style:italic}
@@ -251,7 +254,7 @@ const DEPART = [
 ];
 // Tâches qui s'enchaînent : [nom, pièce, fréquence en jours ou null, délai après la précédente]
 const SUITES = {
-  linge: {titre:'Le linge : lancer, étendre, ranger', etapes:[['Lancer une machine','Buanderie',3,null],['Étendre le linge','Buanderie',null,0],['Ranger le linge','Chambre',null,2]]},
+  linge: {titre:'Le linge : lancer, étendre, ranger', etapes:[['Lancer une machine','Buanderie',3,null],['Étendre le linge','Buanderie',null,0],['Ramasser et ranger le linge','Chambre',null,3]]},
   lv: {titre:'Le lave-vaisselle : lancer, vider', etapes:[['Lancer le lave-vaisselle','Cuisine',1,null],['Vider le lave-vaisselle','Cuisine',null,0]]}
 };
 // Idées proposées dans « Modifier la liste »
@@ -291,10 +294,11 @@ function etat(t){
 
 function tacheHtml(t){
   const e = etat(t);
-  return `<div class="task" data-id="${t.id}">
+  const fait = t.dernier === isoDay(today());
+  return `<div class="task${fait?' is-done':''}" data-id="${t.id}">
     <div class="txt"><span class="name">${esc(t.nom)}</span>
     <span class="meta">${e.html}</span></div>
-    <button class="done-btn" data-done="${t.id}">C’est fait</button></div>`;
+    ${fait ? '<span class="done-tag">Fait ✓</span>' : `<button class="done-btn" data-done="${t.id}">C’est fait</button>`}</div>`;
 }
 
 function histoHtml(){
@@ -426,7 +430,9 @@ app.addEventListener('click', async e => {
   if(day){ day.classList.toggle('on'); day.setAttribute('aria-pressed', day.classList.contains('on')); sauverLigne(day.closest('.edit-row')); return; }
   const d = e.target.closest('[data-done]');
   if(d){
-    const t = tasks.find(x => x.id === d.dataset.done); if(!t) return;
+    const t = tasks.find(x => x.id === d.dataset.done); if(!t || d.disabled) return;
+    if(t.dernier === isoDay(today())) return; // déjà fait aujourd'hui
+    d.disabled = true; d.textContent = 'Fait \u2713';
     const avant = {dernier:t.dernier||null, par:t.par||'', cle:t.cle||''};
     const jour = isoDay(today());
     const h = hist.doc();
@@ -472,11 +478,30 @@ async function ajouterSuite(suite){
   flash('Ajouté');
 }
 
+// Une seule fois : met en place le linge et le lave-vaisselle chez ceux qui avaient l'ancienne liste
+let suitesFaites = false;
+async function mettreSuites(){
+  suitesFaites = true;
+  try{
+    const ref = fs.doc('reglages/menage');
+    const r = (await ref.get()).data() || {};
+    const maj = {};
+    for(const k of ['linge','lv']){
+      if(r[k]) continue;
+      const dernier = SUITES[k].etapes[SUITES[k].etapes.length-1][0].toLowerCase();
+      if(!tasks.some(t => t.nom.toLowerCase() === dernier)) await ajouterSuite(SUITES[k]);
+      maj[k] = true;
+    }
+    if(Object.keys(maj).length) await ref.set(maj, {merge:true});
+  }catch(e){ console.error(e); }
+}
+
 async function seed(){
   const b = fs.batch();
   DEPART.forEach(([nom,piece,jours]) => b.set(col.doc(), {nom, piece, jours, joursSemaine:[], dernier:null, par:'', cle:''}));
   await b.commit();
   await ajouterSuite(SUITES.lv); await ajouterSuite(SUITES.linge);
+  await fs.doc('reglages/menage').set({linge:true, lv:true}, {merge:true});
 }
 
 /* ---------- notifications ---------- */
@@ -549,13 +574,17 @@ auth.onAuthStateChanged(async u => {
       return t;
     });
     parId = Object.fromEntries(tasks.map(t => [t.id, t]));
+    if(!suitesFaites && tasks.length) mettreSuites();
     loaded = true;
     const a = document.activeElement;
     if(editing && a && a.closest && a.closest('.edit-row') && snap.docs.length === app.querySelectorAll('.edit-row').length) return;
     render();
   }, refuse);
   hist.orderBy('ts','desc').limit(200).onSnapshot(snap => {
-    histo = snap.docs.map(d => d.data()).filter(h => h.jour).map(h => ({...h, par: personnes[h.cle] || h.par}));
+    // Retire les doublons (même tâche cochée plusieurs fois le même jour)
+    const vus = new Set();
+    snap.docs.slice().reverse().forEach(d => { const h = d.data(); const k = h.tache+'|'+h.jour; if(vus.has(k)) hist.doc(d.id).delete().catch(()=>{}); else vus.add(k); });
+    histo = snap.docs.filter((d,i,arr) => arr.findIndex(x => x.data().tache===d.data().tache && x.data().jour===d.data().jour) === i).map(d => d.data()).filter(h => h.jour).map(h => ({...h, par: personnes[h.cle] || h.par}));
     if(!editing) render();
   }, () => {});
 });
