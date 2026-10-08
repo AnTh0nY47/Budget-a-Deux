@@ -1,7 +1,7 @@
 // Garde une copie de l'appli pour qu'elle s'ouvre vite, même avec peu de réseau.
 // Les données du budget, elles, passent toujours par Firebase.
-const CACHE = 'budget-v2';
-const FICHIERS = ['./', './index.html', './menage.html', './firebase-config.js', './manifest.webmanifest',
+const CACHE = 'budget-v3';
+const FICHIERS = ['./', './index.html', './menage.html', './planning.js', './firebase-config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -38,4 +38,27 @@ self.addEventListener('fetch', e => {
       return enCache || reseau;
     })));
   }
+});
+
+// Rappel du soir envoyé par la tâche GitHub via Firebase Cloud Messaging
+self.addEventListener('push', e => {
+  let d = {};
+  try { const j = e.data ? e.data.json() : {}; d = j.data || j.notification || j; } catch (err) {}
+  const titre = d.title || 'Le ménage';
+  e.waitUntil(self.registration.showNotification(titre, {
+    body: d.body || 'Il y a des choses à faire aujourd\u2019hui.',
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    tag: 'menage',
+    data: { url: d.url || './menage.html' }
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const cible = new URL(e.notification.data && e.notification.data.url || './menage.html', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(fen => {
+    for (const f of fen) { if (f.url.startsWith(self.registration.scope)) { f.navigate(cible); return f.focus(); } }
+    return self.clients.openWindow(cible);
+  }));
 });

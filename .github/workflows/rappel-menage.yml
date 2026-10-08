@@ -1,0 +1,24 @@
+name: Rappel du ménage
+
+on:
+  schedule:
+    # Tous les soirs vers 18h30, heure de Paris (16h30 UTC, donc 17h30 en hiver)
+    - cron: '30 16 * * *'
+  workflow_dispatch:
+
+jobs:
+  rappel:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rappel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund --silent
+      - run: node rappel.mjs
+        env:
+          TZ: Europe/Paris
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

@@ -7,3 +7,6 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "526018349633",
   appId: "1:526018349633:web:3a0f061c72c4f1d761d4c0"
 };
+
+// Clé pour les notifications (Firebase, Paramètres du projet, Cloud Messaging, Certificats Web Push)
+window.FIREBASE_VAPID_KEY = "A_REMPLIR";

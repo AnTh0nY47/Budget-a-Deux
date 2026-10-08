@@ -168,6 +168,34 @@ details.later[open] summary{margin-bottom:10px}
   .task{padding:12px}
   .task .name{font-size:17px}
 }
+.who-a{color:var(--green)} .who-b{color:#9a6f05}
+.score{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.score div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column}
+.score span{font-weight:500}
+.score b{font-size:30px;font-weight:500;line-height:1.1;color:var(--ink)}
+.score small{color:var(--muted);font-style:italic;font-size:15px}
+.score .who-a{border-top:3px solid var(--green)} .score .who-b{border-top:3px solid var(--mustard)}
+.hrow{display:flex;align-items:baseline;gap:10px;padding:9px 14px;border-top:1px solid var(--line);font-size:16px}
+.hrow:first-child{border-top:0}
+.hrow span{flex:1;min-width:0}
+.hrow b{font-weight:600}
+.hrow small{color:var(--faint);font-style:italic;white-space:nowrap}
+.hrow i{width:9px;height:9px;border-radius:50%;flex:none;align-self:center;background:var(--line)}
+.hrow .dot-a{background:var(--green)} .hrow .dot-b{background:var(--mustard)}
+.freq .every{display:inline-flex;align-items:center;gap:4px}
+.edit-row .freq select{width:auto}
+.edit-row .freq{display:flex;align-items:center;gap:6px}
+.days{display:inline-flex;gap:3px;flex-wrap:wrap}
+.day{width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:14px;padding:0}
+.day.on{background:var(--green);border-color:var(--green);color:#fff}
+.edit-row{grid-template-columns:minmax(0,1fr) auto 34px !important}
+.edit-row .freq{flex-wrap:wrap}
+.idees{display:flex;flex-wrap:wrap;gap:8px}
+.idees p{flex-basis:100%}
+.chip{border:1px dashed var(--green);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:15px}
+.chip small{color:var(--faint);font-style:italic}
+.chip:hover{border-style:solid}
+@media (max-width:560px){ .edit-row{grid-template-columns:minmax(0,1fr) 30px !important;grid-template-areas:"n d" "f d" !important} }
 </style>
 </head>
 <body>
@@ -195,6 +223,8 @@ details.later[open] summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+<script src="planning.js"></script>
 <script src="firebase-config.js"></script>
 <script>firebase.initializeApp(window.FIREBASE_CONFIG);</script>
 <script>
@@ -203,58 +233,94 @@ const $ = s => document.querySelector(s);
 const app = $('#app');
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const flash = m => { $('#status').textContent = m; };
-const DAY = 86400000;
+const P = window.Planning;
 const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
 const isoDay = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const parseDay = s => { if(!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+const COURT = ['D','L','M','M','J','V','S'];
 
 // Liste de départ, modifiable ensuite
 const DEPART = [
-  ['Passer l’aspirateur','Partout',7], ['Laver les sols','Partout',14], ['Faire la poussière','Partout',14],
+  ['Sortir les poubelles','Cuisine',2], ['Vaisselle et plan de travail','Cuisine',1], ['Lancer une machine','Buanderie',3],
+  ['Ranger le salon','Salon',2], ['Passer l’aspirateur','Partout',7], ['Laver les sols','Partout',14], ['Faire la poussière','Partout',14],
   ['Lavabo, douche et miroir','Salle de bain',7], ['Toilettes','Salle de bain',7], ['Changer les serviettes','Salle de bain',7],
-  ['Plaques de cuisson et plan de travail','Cuisine',7], ['Micro-ondes','Cuisine',14], ['Vider et nettoyer le frigo','Cuisine',30],
-  ['Four','Cuisine',60], ['Filtre de la hotte','Cuisine',90], ['Sortir le tri','Cuisine',7],
-  ['Changer les draps','Chambre',14], ['Joint et filtre du lave-linge','Buanderie',60], ['Vitres','Partout',60]
+  ['Plaques de cuisson','Cuisine',7], ['Micro-ondes','Cuisine',14], ['Vider et nettoyer le frigo','Cuisine',30],
+  ['Four','Cuisine',60], ['Filtre de la hotte','Cuisine',90], ['Changer les draps','Chambre',14],
+  ['Joint et filtre du lave-linge','Buanderie',60], ['Vitres','Partout',60]
+];
+// Idées proposées dans « Modifier la liste »
+const IDEES = [
+  ['Sortir les poubelles','Cuisine',2], ['Sortir le tri','Cuisine',7], ['Vaisselle et plan de travail','Cuisine',1],
+  ['Lancer une machine','Buanderie',3], ['Étendre et plier le linge','Buanderie',3], ['Ranger le salon','Salon',2],
+  ['Faire le lit','Chambre',1], ['Arroser les plantes','Partout',4], ['Courses','Cuisine',7]
 ];
 
 const auth = firebase.auth(), fs = firebase.firestore();
 try { await fs.enablePersistence({synchronizeTabs:true}); } catch(e) {}
 auth.getRedirectResult().catch(()=>{});
 const col = fs.collection('menage');
+const hist = fs.collection('menage_historique');
 
-let tasks = [], loaded = false, editing = false, me = '';
+let tasks = [], histo = [], loaded = false, editing = false;
+let moi = null;            // {uid, nom, cle}
+let personnes = {a:'Personne A', b:'Personne B'};
 
-function freqLabel(n){
-  if(n % 7 === 0){ const w = n/7; return w===1 ? 'chaque semaine' : `toutes les ${w} semaines`; }
-  if(n === 1) return 'chaque jour';
-  if(n % 30 === 0){ const m = n/30; return m===1 ? 'chaque mois' : `tous les ${m} mois`; }
-  return `tous les ${n} jours`;
+/* ---------- affichage ---------- */
+function etat(t){
+  const n = P.dans(t, today());
+  let quand;
+  if(!t.dernier && !(t.joursSemaine||[]).length) quand = '<span class="today">jamais fait</span>';
+  else if(n < 0) quand = `<span class="late">en retard de ${-n} jour${-n>1?'s':''}</span>`;
+  else if(n === 0) quand = '<span class="today">aujourd’hui</span>';
+  else if(n === 1) quand = 'demain';
+  else quand = `dans ${n} jours`;
+  let fait = '';
+  if(t.dernier){
+    const il = Math.round((today() - P.lireJour(t.dernier))/86400000);
+    fait = (il === 0 ? 'fait aujourd’hui' : il === 1 ? 'fait hier' : `fait il y a ${il} jours`) + (t.par ? ` par <b class="who-${t.cle||''}">${esc(t.par)}</b>` : '');
+  }
+  return {n, html: [quand, fait].filter(Boolean).join(' · ')};
 }
-function status(t){
-  const last = parseDay(t.dernier);
-  if(!last) return {due:0, text:'<span class="today">jamais fait</span>'};
-  const next = new Date(last.getTime() + t.jours*DAY);
-  const due = Math.round((next - today())/DAY);
-  let when;
-  if(due < 0) when = `<span class="late">en retard de ${-due} jour${-due>1?'s':''}</span>`;
-  else if(due === 0) when = '<span class="today">aujourd’hui</span>';
-  else if(due === 1) when = 'demain';
-  else when = `dans ${due} jours`;
-  const ago = Math.round((today() - last)/DAY);
-  const fait = ago === 0 ? 'fait aujourd’hui' : ago === 1 ? 'fait hier' : `fait il y a ${ago} jours`;
-  return {due, text: `${when} · ${fait}${t.par?' par '+esc(t.par):''}`};
-}
 
-function taskHtml(t){
-  const s = status(t);
+function tacheHtml(t){
+  const e = etat(t);
   return `<div class="task" data-id="${t.id}">
     <div class="txt"><span class="name">${esc(t.nom)}</span>
-    <span class="meta">${esc(t.piece||'')}${t.piece?' · ':''}${s.text}</span></div>
+    <span class="meta">${e.html}</span></div>
     <button class="done-btn" data-done="${t.id}">C’est fait</button></div>`;
 }
 
+function histoHtml(){
+  if(!histo.length) return '';
+  const debut = new Date(today().getFullYear(), today().getMonth(), 1);
+  const duMois = histo.filter(h => P.lireJour(h.jour) >= debut);
+  const cpt = {a:0, b:0}; duMois.forEach(h => { if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
+  const mois = debut.toLocaleDateString('fr-FR',{month:'long'});
+  const jourTxt = j => { const il = Math.round((today() - P.lireJour(j))/86400000); return il===0?'aujourd’hui':il===1?'hier':`il y a ${il} jours`; };
+  return `<section class="group">
+    <h2>Qui a fait quoi</h2>
+    <div class="score">
+      <div class="who-a"><span>${esc(personnes.a)}</span><b>${cpt.a}</b><small>tâche${cpt.a>1?'s':''} en ${mois}</small></div>
+      <div class="who-b"><span>${esc(personnes.b)}</span><b>${cpt.b}</b><small>tâche${cpt.b>1?'s':''} en ${mois}</small></div>
+    </div>
+    <div class="tasks histo">${histo.slice(0,10).map(h => `<div class="hrow"><i class="dot-${h.cle||''}"></i><span><b>${esc(h.par)}</b> ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}</span><small>${jourTxt(h.jour)}</small></div>`).join('')}</div>
+  </section>`;
+}
+
+function notifHtml(){
+  const ok = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+  const vapid = window.FIREBASE_VAPID_KEY && !/A_REMPLIR/.test(window.FIREBASE_VAPID_KEY);
+  if(!vapid) return '';
+  if(ok && Notification.permission === 'granted' && localStorage.getItem('notifOK')) return `<p class="hint" style="margin:0">Rappel activé sur ce téléphone, chaque soir s’il y a des choses à faire.</p>`;
+  if(!ok){
+    const ios = /iPhone|iPad/.test(navigator.userAgent);
+    const installee = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
+    return `<p class="hint" style="margin:0">${ios && !installee ? 'Pour recevoir un rappel le soir, ouvre l’appli depuis son icône sur l’écran d’accueil.' : 'Ce téléphone ne peut pas recevoir de notifications. Sur iPhone, il faut iOS 16.4 ou plus récent.'}</p>`;
+  }
+  return `<button class="add" id="notif">Recevoir un rappel le soir</button>`;
+}
+
 function render(){
-  if(!loaded) return;
+  if(!loaded || !moi) return;
   if(!tasks.length){
     app.innerHTML = `<div class="notice"><h2>Pas encore de tâches</h2>
       <p class="muted" style="margin:0">Je peux mettre une liste de départ avec les tâches les plus courantes. Vous l’ajusterez ensuite.</p>
@@ -262,80 +328,150 @@ function render(){
     $('#seed').onclick = seed; return;
   }
   if(editing) return renderEdit();
-  const withS = tasks.map(t => ({t, s: status(t)})).sort((a,b) => a.s.due - b.s.due || a.t.nom.localeCompare(b.t.nom));
-  const now = withS.filter(x => x.s.due <= 0), soon = withS.filter(x => x.s.due > 0 && x.s.due <= 7), later = withS.filter(x => x.s.due > 7);
-  const list = arr => `<div class="tasks">${arr.map(x=>taskHtml(x.t)).join('')}</div>`;
+  const avec = tasks.map(t => ({t, e: etat(t)})).sort((a,b) => a.e.n - b.e.n || a.t.nom.localeCompare(b.t.nom));
+  const now = avec.filter(x => x.e.n <= 0), soon = avec.filter(x => x.e.n > 0 && x.e.n <= 7), later = avec.filter(x => x.e.n > 7);
+  const list = arr => `<div class="tasks">${arr.map(x=>tacheHtml(x.t)).join('')}</div>`;
   app.innerHTML = `<div class="groups">
+    <p class="hint" style="margin:0">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b>.</p>
     <section class="group"><h2>À faire maintenant${now.length?` <small>${now.length}</small>`:''}</h2>
       ${now.length ? list(now) : '<div class="tasks"><div class="empty-good">Tout est à jour. Profitez-en.</div></div>'}</section>
     ${soon.length ? `<section class="group"><h2>Cette semaine</h2>${list(soon)}</section>` : ''}
     ${later.length ? `<details class="later group"><summary>Plus tard (${later.length})</summary>${list(later)}</details>` : ''}
-    <div class="toolbar"><button class="add" id="edit">Modifier la liste</button></div>
+    ${histoHtml()}
+    <div class="toolbar"><button class="add" id="edit">Modifier la liste</button>${notifHtml()}</div>
   </div>`;
   $('#edit').onclick = () => { editing = true; render(); };
+  const nb = $('#notif'); if(nb) nb.onclick = activerNotifs;
+}
+
+function freqHtml(t){
+  const js = Array.isArray(t.joursSemaine) && t.joursSemaine.length ? t.joursSemaine : null;
+  const n = t.jours || 7;
+  const u = js ? 'j' : n % 30 === 0 ? 30 : n % 7 === 0 ? 7 : 1;
+  const opts = [['1','jours'],['7','semaines'],['30','mois'],['j','jours précis']];
+  return `<span class="freq">
+    <span class="every"${js?' hidden':''}>tous les <input data-f="n" inputmode="numeric" value="${js?1:n/u}" aria-label="Nombre"></span>
+    <select data-f="u" aria-label="Fréquence">${opts.map(([v,l])=>`<option value="${v}"${String(u)===v?' selected':''}>${l}</option>`).join('')}</select>
+    <span class="days"${js?'':' hidden'}>${[1,2,3,4,5,6,0].map(d=>`<button type="button" class="day${js&&js.includes(d)?' on':''}" data-day="${d}" aria-pressed="${js&&js.includes(d)?'true':'false'}" aria-label="${P.NOMS_JOURS[d]}">${COURT[d]}</button>`).join('')}</span>
+  </span>`;
 }
 
 function renderEdit(){
-  const opts = [[1,'jours'],[7,'semaines'],[30,'mois']];
-  const unitOf = n => n % 30 === 0 ? 30 : n % 7 === 0 ? 7 : 1;
+  const noms = new Set(tasks.map(t => t.nom.toLowerCase()));
+  const idees = IDEES.filter(([n]) => !noms.has(n.toLowerCase()));
   app.innerHTML = `<section class="group">
     <div class="sec-head"><h2>Modifier la liste</h2></div>
-    <p class="hint" style="margin:0 0 10px">Tout s’enregistre au fur et à mesure.</p>
-    <div class="tasks">${tasks.map(t => { const u = unitOf(t.jours); return `<div class="edit-row" data-id="${t.id}">
+    <p class="hint" style="margin:0 0 10px">Tout s’enregistre au fur et à mesure. Pour les poubelles, choisis « jours précis » et coche les jours où il faut les sortir.</p>
+    <div class="tasks">${tasks.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(t => `<div class="edit-row" data-id="${t.id}">
       <input class="n" data-f="nom" value="${esc(t.nom)}" aria-label="Tâche">
-      <span class="freq">tous les <input data-f="n" inputmode="numeric" value="${t.jours/u}" aria-label="Nombre"><select data-f="u" aria-label="Unité">${opts.map(([v,l])=>`<option value="${v}"${v===u?' selected':''}>${l}</option>`).join('')}</select></span>
-      <input class="p" data-f="piece" value="${esc(t.piece||'')}" placeholder="Pièce" aria-label="Pièce">
-      <button class="del" data-del="${t.id}" aria-label="Supprimer ${esc(t.nom)}">×</button></div>`; }).join('')}</div>
+      ${freqHtml(t)}
+      <button class="del" data-del="${t.id}" aria-label="Supprimer ${esc(t.nom)}">×</button></div>`).join('')}</div>
     <div class="toolbar" style="margin-top:12px"><button class="add" id="addTask">Ajouter une tâche</button><button class="link" id="back">Terminé</button></div>
+    ${idees.length ? `<div class="idees"><p class="hint" style="margin:14px 0 8px">Idées de tâches fréquentes</p>${idees.map(([n,p,j],i)=>`<button class="chip" data-idee="${i}">${esc(n)} <small>${esc(P.frequence({jours:j}))}</small></button>`).join('')}</div>` : ''}
   </section>`;
   $('#back').onclick = () => { editing = false; render(); };
-  $('#addTask').onclick = async () => { await col.add({nom:'Nouvelle tâche', piece:'', jours:7, dernier:null, par:''}); };
+  $('#addTask').onclick = () => col.add({nom:'Nouvelle tâche', piece:'', jours:7, joursSemaine:[], dernier:null, par:'', cle:''});
+  app.querySelectorAll('[data-idee]').forEach(b => b.onclick = () => { const [nom,piece,jours] = idees[+b.dataset.idee]; col.add({nom, piece, jours, joursSemaine:[], dernier:null, par:'', cle:''}); });
 }
 
+/* ---------- modifications ---------- */
 const timers = {};
-app.addEventListener('input', e => {
-  const row = e.target.closest('.edit-row'); if(!row) return;
+function sauverLigne(row){
   const id = row.dataset.id;
   clearTimeout(timers[id]);
   timers[id] = setTimeout(() => {
-    const n = Math.max(1, parseInt(row.querySelector('[data-f="n"]').value,10) || 1);
-    const u = parseInt(row.querySelector('[data-f="u"]').value,10);
-    col.doc(id).update({ nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom', piece: row.querySelector('[data-f="piece"]').value.trim(), jours: n*u })
-      .then(()=>flash('Enregistré')).catch(()=>flash("L'enregistrement a échoué."));
-  }, 600);
+    const u = row.querySelector('[data-f="u"]').value;
+    const maj = { nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom' };
+    if(u === 'j'){
+      maj.joursSemaine = [...row.querySelectorAll('.day.on')].map(b => +b.dataset.day);
+    } else {
+      const n = Math.max(1, parseInt(row.querySelector('[data-f="n"]').value,10) || 1);
+      maj.jours = n * parseInt(u,10); maj.joursSemaine = [];
+    }
+    col.doc(id).update(maj).then(()=>flash('Enregistré')).catch(()=>flash("L'enregistrement a échoué."));
+  }, 500);
+}
+app.addEventListener('input', e => { const row = e.target.closest('.edit-row'); if(row && e.target.matches('input')) sauverLigne(row); });
+app.addEventListener('change', e => {
+  const row = e.target.closest('.edit-row'); if(!row || !e.target.matches('select')) return;
+  const precis = e.target.value === 'j';
+  row.querySelector('.every').hidden = precis; row.querySelector('.days').hidden = !precis;
+  if(precis && !row.querySelector('.day.on')) return; // on attend qu'un jour soit coché
+  sauverLigne(row);
 });
-app.addEventListener('change', e => { if(e.target.matches('select')) e.target.dispatchEvent(new Event('input',{bubbles:true})); });
 
-let undoData = null, toastTimer = null;
+let annuler = null, toastTimer = null;
 app.addEventListener('click', async e => {
+  const day = e.target.closest('[data-day]');
+  if(day){ day.classList.toggle('on'); day.setAttribute('aria-pressed', day.classList.contains('on')); sauverLigne(day.closest('.edit-row')); return; }
   const d = e.target.closest('[data-done]');
   if(d){
     const t = tasks.find(x => x.id === d.dataset.done); if(!t) return;
-    undoData = {id:t.id, dernier:t.dernier||null, par:t.par||''};
-    await col.doc(t.id).update({dernier: isoDay(today()), par: me});
+    const avant = {dernier:t.dernier||null, par:t.par||'', cle:t.cle||''};
+    const jour = isoDay(today());
+    const h = hist.doc();
+    const b = fs.batch();
+    b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle});
+    b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, jour, ts: firebase.firestore.FieldValue.serverTimestamp()});
+    await b.commit();
+    annuler = {id:t.id, avant, hist:h.id};
     $('#toastMsg').textContent = `${t.nom} : c’est noté`;
     $('#toast').hidden = false; clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { $('#toast').hidden = true; undoData = null; }, 5000);
+    toastTimer = setTimeout(() => { $('#toast').hidden = true; annuler = null; }, 5000);
     return;
   }
   const del = e.target.closest('[data-del]');
   if(del){
-    const row = del.closest('.edit-row');
     if(del.dataset.confirm){ await col.doc(del.dataset.del).delete(); return; }
     del.dataset.confirm = '1'; del.textContent = 'Sûr ?'; del.style.width = 'auto'; del.style.color = 'var(--red)';
     setTimeout(()=>{ if(document.body.contains(del)){ delete del.dataset.confirm; del.textContent='×'; del.style.width=''; del.style.color=''; } }, 3000);
   }
 });
 $('#undo').onclick = async () => {
-  if(!undoData) return;
-  await col.doc(undoData.id).update({dernier: undoData.dernier, par: undoData.par});
-  undoData = null; $('#toast').hidden = true;
+  if(!annuler) return;
+  const b = fs.batch();
+  b.update(col.doc(annuler.id), annuler.avant);
+  b.delete(hist.doc(annuler.hist));
+  await b.commit();
+  annuler = null; $('#toast').hidden = true;
 };
 
 async function seed(){
   const b = fs.batch();
-  DEPART.forEach(([nom,piece,jours]) => b.set(col.doc(), {nom, piece, jours, dernier:null, par:''}));
+  DEPART.forEach(([nom,piece,jours]) => b.set(col.doc(), {nom, piece, jours, joursSemaine:[], dernier:null, par:'', cle:''}));
   await b.commit();
+}
+
+/* ---------- notifications ---------- */
+async function activerNotifs(){
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){ flash('Notifications refusées. Tu peux les autoriser plus tard dans les réglages du téléphone.'); return; }
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    const token = await firebase.messaging().getToken({vapidKey: window.FIREBASE_VAPID_KEY, serviceWorkerRegistration: reg});
+    if(!token) throw new Error('pas de jeton');
+    await fs.collection('appareils').doc(token).set({uid: moi.uid, nom: moi.nom, maj: firebase.firestore.FieldValue.serverTimestamp()});
+    try{ localStorage.setItem('notifOK','1'); }catch(e){}
+    flash('C’est activé. Tu recevras un rappel le soir quand il y a des choses à faire.');
+    render();
+  }catch(err){
+    console.error(err);
+    flash("L'activation n'a pas marché. Réessaie depuis l'appli installée sur l'écran d'accueil.");
+  }
+}
+
+/* ---------- qui es-tu ---------- */
+function choisirNom(u){
+  app.innerHTML = `<div class="notice"><h2>Qui es-tu ?</h2>
+    <p class="muted" style="margin:0">Pour savoir qui a fait quoi. Je ne te le demanderai qu’une fois.</p>
+    <div class="toolbar"><button class="primary" data-cle="a">${esc(personnes.a)}</button><button class="primary" data-cle="b">${esc(personnes.b)}</button></div></div>`;
+  app.querySelectorAll('[data-cle]').forEach(b => b.onclick = async () => {
+    const cle = b.dataset.cle;
+    moi = {uid:u.uid, cle, nom:personnes[cle]};
+    await fs.collection('membres').doc(u.uid).set({cle});
+    render();
+  });
 }
 
 function loginBox(){
@@ -352,25 +488,41 @@ function loginBox(){
   };
 }
 
+function refuse(){
+  app.innerHTML = `<div class="notice"><h2>Accès refusé</h2><p class="muted" style="margin:0">Ce compte Google n'a pas accès. Connecte toi avec le bon compte.</p><button class="primary" id="out2">Changer de compte</button></div>`;
+  $('#out2').onclick = () => auth.signOut().then(()=>location.reload());
+}
+
 let started = false;
-auth.onAuthStateChanged(u => {
+auth.onAuthStateChanged(async u => {
   if(!u){ loginBox(); $('#logout').hidden = true; return; }
   $('#logout').hidden = false;
-  me = (u.displayName || u.email || '').split(' ')[0];
   if(started) return; started = true;
+  try{
+    const b = await fs.doc('budget/main').get();
+    if(b.exists && b.data().personnes) personnes = {...personnes, ...b.data().personnes};
+    const m = await fs.collection('membres').doc(u.uid).get();
+    if(m.exists) moi = {uid:u.uid, cle:m.data().cle, nom:personnes[m.data().cle]};
+  }catch(e){ return refuse(); }
+  if(!moi) choisirNom(u);
   col.onSnapshot(snap => {
-    tasks = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    tasks = snap.docs.map(d => {
+      const t = {id:d.id, ...d.data()};
+      if(t.cle && personnes[t.cle]) t.par = personnes[t.cle]; // le prénom à jour
+      return t;
+    });
     loaded = true;
     const a = document.activeElement;
     if(editing && a && a.closest && a.closest('.edit-row') && snap.docs.length === app.querySelectorAll('.edit-row').length) return;
     render();
-  }, () => {
-    app.innerHTML = `<div class="notice"><h2>Accès refusé</h2><p class="muted" style="margin:0">Ce compte Google n'a pas accès. Connecte toi avec le bon compte.</p><button class="primary" id="out2">Changer de compte</button></div>`;
-    $('#out2').onclick = () => auth.signOut().then(()=>location.reload());
-  });
+  }, refuse);
+  hist.orderBy('ts','desc').limit(200).onSnapshot(snap => {
+    histo = snap.docs.map(d => d.data()).filter(h => h.jour).map(h => ({...h, par: personnes[h.cle] || h.par}));
+    if(!editing) render();
+  }, () => {});
 });
 $('#logout').onclick = () => auth.signOut().then(()=>location.reload());
-// Les « en retard » se mettent à jour quand on revient sur l'appli un autre jour
+// Les échéances se mettent à jour quand on revient sur l'appli un autre jour
 document.addEventListener('visibilitychange', () => { if(!document.hidden && !editing) render(); });
 })();
 </script>
