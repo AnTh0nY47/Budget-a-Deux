@@ -659,7 +659,15 @@ document.addEventListener('visibilitychange', () => { if(!document.hidden && !ed
 })();
 </script>
 <script>
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if ('serviceWorker' in navigator) {
+  // Quand une nouvelle version de l'appli arrive, on recharge une fois pour l'afficher
+  let recharge = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!recharge) { recharge = true; location.reload(); } });
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(r => {
+    r.update().catch(()=>{});
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) r.update().catch(()=>{}); });
+  }).catch(()=>{}));
+}
 </script>
 </body>
 </html>

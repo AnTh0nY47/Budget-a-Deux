@@ -1,6 +1,6 @@
 // Garde une copie de l'appli pour qu'elle s'ouvre vite, même avec peu de réseau.
 // Les données du budget, elles, passent toujours par Firebase.
-const CACHE = 'budget-v6';
+const CACHE = 'budget-v7';
 const FICHIERS = ['./', './index.html', './menage.html', './planning.js', './firebase-config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
@@ -22,7 +22,7 @@ self.addEventListener('fetch', e => {
   // Pages et fichiers du site : d'abord le réseau pour avoir la dernière version, sinon la copie
   if (url.origin === location.origin) {
     e.respondWith(
-      fetch(req).then(res => {
+      fetch(req, { cache: 'no-cache' }).then(res => {
         const copie = res.clone();
         caches.open(CACHE).then(c => c.put(req, copie));
         return res;
