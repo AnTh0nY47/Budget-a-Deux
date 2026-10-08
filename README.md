@@ -24,4 +24,4 @@ Chaque soir à 18h, une tâche GitHub regarde ce qui est à faire et envoie une 
 
 ## Utilisation
 
-On se connecte avec son compte Google. La première fois, le bouton « Commencer avec nos chiffres » remplit le budget avec nos montants actuels. Ensuite tout se modifie directement sur la page et se met à jour chez l'autre en temps réel.
+On se connecte avec son compte Google. La première fois, le bouton « Commencer un budget » crée un budget vide à remplir. Ensuite tout se modifie directement sur la page et se met à jour chez l'autre en temps réel.

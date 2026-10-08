@@ -193,11 +193,8 @@ setMonthLabel();
 
 const FIXED = ['charges','aides','revenus'];
 const commun = list => (list||[]).filter(x=>!x.perso);
-const DEPART = {personnes:{a:'Anthony le Magnifique',b:'Princesse'},
-  revenus:[{id:'r1',label:'Salaire',montant:0,qui:'a'},{id:'r2',label:'Salaire',montant:0,qui:'b'}],
-  aides:[{id:'a1',label:'APL',montant:0,compte:'a'},{id:'a2',label:"Prime d'activité",montant:0,compte:'a'}],
-  charges:[{id:'c1',label:'Loyer',montant:450,compte:'a'},{id:'c2',label:'Électricité',montant:97,compte:'a'},{id:'c3',label:'Eau',montant:69,compte:'a'},
-    {id:'c4',label:'Abonnement Claude',montant:21.6,compte:'a'},{id:'c5',label:'Internet',montant:39.99,compte:'b'},{id:'c6',label:'Netflix',montant:14.99,compte:'b'}]};
+// Budget vide de départ (les vrais montants sont uniquement dans Firebase)
+const DEPART = {personnes:{a:'Personne A',b:'Personne B'}, revenus:[], aides:[], charges:[]};
 const clone = x => JSON.parse(JSON.stringify(x||[]));
 function eff(coll){ return Array.isArray(month[coll]) ? month[coll] : (main?.[coll]||[]); }
 function own(coll){ return Array.isArray(month[coll]); }
@@ -259,7 +256,7 @@ function renderAll(){
   if(mainExists===false){
     app.innerHTML = `<div class="notice"><h2>Le budget n'est pas encore rempli</h2>
       <p class="muted" style="margin:0">Ajoute vos revenus, aides et charges fixes pour calculer automatiquement le virement du mois.</p>
-      ${canWrite?'<button class="primary" id="init">Commencer avec nos chiffres</button>':''}</div>`;
+      ${canWrite?'<button class="primary" id="init">Commencer un budget</button>':''}</div>`;
     const b = $('#init'); if(b) b.onclick = ()=>{ main = JSON.parse(JSON.stringify(DEPART)); mainExists=true; saveMain(true); renderAll(); };
     return;
   }

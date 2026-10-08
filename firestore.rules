@@ -4,6 +4,7 @@ service cloud.firestore {
     // Seuls nos deux comptes Google peuvent lire et modifier le budget
     match /{document=**} {
       allow read, write: if request.auth != null
+        && request.auth.token.email_verified == true
         && request.auth.token.email in ['TON_EMAIL@gmail.com', 'EMAIL_DE_PRINCESSE@gmail.com'];
     }
   }
