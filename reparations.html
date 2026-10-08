@@ -246,31 +246,33 @@ details.later[open] summary{margin-bottom:10px}
 #app{display:flex;flex-direction:column;gap:28px}
 @media (prefers-reduced-motion:reduce){.progress i{transition:none}}
 
-/* courses */
-.add-form{display:flex;gap:8px}
-.add-form input{flex:1;min-width:0;font:inherit;font-size:max(17px,1em);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
-.add-form input:focus{outline:none;border-color:var(--green)}
-.add-form button{border:0;background:var(--green);color:#fff;border-radius:10px;padding:0 18px;font:inherit;font-size:17px}
-.rayon h3{font-size:16px;font-weight:500;font-style:italic;color:var(--green);margin:0 0 2px}
-.c-list{list-style:none;margin:0;padding:0}
-.c-item{display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line)}
-.c-item:last-child{border-bottom:0}
-.c-item .txt{flex:1;min-width:0;display:flex;flex-direction:column;cursor:pointer}
-.c-item .name{font-size:19px;line-height:1.25}
-.c-item .meta{font-size:14px;color:var(--faint);font-style:italic}
-.c-item.pris .name{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line)}
-.c-item .x{border:0;background:transparent;color:var(--faint);font-size:20px;width:32px;height:32px;border-radius:50%;flex:none}
-.c-item .x:hover{color:var(--red);background:#f6e6e2}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chips button{border:1px dashed var(--green);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font:inherit;font-size:15px}
-.chips button:hover{border-style:solid}
-.finish{display:flex;flex-direction:column;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
-.finish .row2{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
-.finish input{width:120px;font:inherit;font-size:max(17px,1em);text-align:right;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.finish select{font:inherit;font-size:max(16px,1em);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.finish input:focus,.finish select:focus{outline:none;border-color:var(--green)}
-.btn{border:0;background:var(--green);color:#fff;border-radius:8px;padding:9px 16px;font:inherit;font-size:16px}
-.btn.ghost{background:transparent;color:var(--green);border:1px solid var(--green)}
+
+/* à réparer */
+.add-form{display:flex;flex-wrap:wrap;gap:8px}
+.add-form input{flex:1 1 220px;min-width:0;font:inherit;font-size:max(17px,1em);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 14px}
+.add-form select{font:inherit;font-size:max(16px,1em);color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.add-form input:focus,.add-form select:focus{outline:none;border-color:var(--green)}
+.add-form button{border:0;background:var(--green);color:#fff;border-radius:10px;padding:0 18px;font:inherit;font-size:17px;min-height:46px}
+.groupe h3{font-size:16px;font-weight:500;font-style:italic;color:var(--green);margin:0 0 2px}
+.groupe.urgent h3{color:var(--red)}
+.r-list{list-style:none;margin:0;padding:0}
+.r-item{display:flex;align-items:flex-start;gap:12px;padding:12px 2px;border-bottom:1px solid var(--line)}
+.r-item:last-child{border-bottom:0}
+.r-item .check{margin-top:2px}
+.r-item .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.r-item .name{font-size:19px;line-height:1.25}
+.r-item .meta{font-size:14px;color:var(--faint);font-style:italic}
+.r-item .meta .vieux{color:#9a6f05;font-style:normal}
+.r-item textarea{font:inherit;font-size:max(16px,.95em);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:8px;padding:4px 6px;margin-left:-6px;resize:none;width:100%;min-height:1.6em}
+.r-item textarea:hover{border-color:var(--line)}
+.r-item textarea:focus{outline:none;border-color:var(--green);background:var(--card)}
+.r-item textarea::placeholder{color:var(--faint);font-style:italic}
+.r-item.fait .name{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line)}
+.r-actions{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.urg{border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:999px;padding:3px 10px;font:inherit;font-size:14px;white-space:nowrap}
+.urg.u-urgent{border-color:var(--red);color:var(--red)}
+.r-item .x{border:0;background:transparent;color:var(--faint);font-size:20px;width:32px;height:32px;border-radius:50%}
+.r-item .x:hover{color:var(--red);background:#f6e6e2}
 #app{display:flex;flex-direction:column;gap:26px}
 .tabs{max-width:100%;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
@@ -287,11 +289,11 @@ details.later[open] summary{margin-bottom:10px}
 </svg>
 </div>
 <div class="wrap">
-  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html">Ménage</a><a href="courses.html" aria-current="page">Courses</a><a href="reparations.html">À réparer</a></nav>
+  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html">Ménage</a><a href="courses.html">Courses</a><a href="reparations.html" aria-current="page">À réparer</a></nav>
   <header>
     <div>
-      <h1>Les courses</h1>
-      <div class="sub">Ce qui manque à la maison, rangé par rayon</div>
+      <h1>À réparer</h1>
+      <div class="sub">Les petits travaux qui traînent, pour ne plus les oublier</div>
     </div>
   </header>
   <div id="app"><div class="notice"><p class="muted" style="margin:0">Chargement</p></div></div>
@@ -310,133 +312,98 @@ const $ = s => document.querySelector(s);
 const app = $('#app');
 const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const flash = m => { $('#status').textContent = m; };
-const sansAccent = s => s.toLowerCase().replace(/œ/g,'oe').replace(/æ/g,'ae').normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
-
-// Rayons, dans l'ordre d'un magasin, avec les mots qui permettent de deviner
-const RAYONS = [
-  ['Fruits et légumes', 'pomme poire banane orange citron fraise raisin kiwi melon pasteque peche abricot fruit legume salade tomate carotte courgette aubergine poivron oignon ail echalote pomme de terre patate champignon concombre avocat brocoli chou epinard haricot poireau radis persil basilic coriandre menthe herbes'],
-  ['Boulangerie', 'pain baguette brioche croissant viennoiserie pain de mie biscotte'],
-  ['Viande et poisson', 'poulet boeuf steak hache porc jambon lardon saucisse viande dinde veau agneau poisson saumon thon cabillaud crevette merguez escalope'],
-  ['Frais', 'lait beurre creme fromage yaourt yogourt oeuf oeufs emmental mozzarella comte raclette skyr dessert compote fraiche pate a tarte pate feuilletee gnocchi'],
-  ['Épicerie', 'pates riz semoule farine sucre sel poivre huile vinaigre moutarde mayonnaise ketchup sauce conserve thon en boite soupe cereales cafe the chocolat confiture miel nutella biscuit gateau chips apero lentille pois chiche quinoa epice bouillon levure'],
-  ['Surgelés', 'surgele glace pizza frites nuggets poelee'],
-  ['Boissons', 'eau coca soda jus biere vin sirop limonade boisson'],
-  ['Hygiène', 'shampoing shampooing gel douche savon dentifrice brosse a dents deodorant papier toilette pq coton mouchoir rasoir creme protection serviette hygienique tampon'],
-  ['Entretien', 'lessive adoucissant liquide vaisselle pastille lave vaisselle eponge sac poubelle sacs poubelle javel nettoyant essuie tout sopalin film alimentaire aluminium papier cuisson produit vitre wc'],
-  ['Autre', '']
-];
-function devinerRayon(nom){
-  const n = ' ' + sansAccent(nom).replace(/[^a-z ]/g,' ') + ' ';
-  let meilleur = 'Autre', long = 0;
-  // on teste aussi les expressions de plusieurs mots (pomme de terre, liquide vaisselle)
-  for(const [r, liste] of RAYONS){
-    if(!liste) continue;
-    const mots = liste.split(' ');
-    for(let i = 0; i < mots.length; i++){
-      for(let k = 3; k >= 1; k--){
-        const expr = mots.slice(i, i+k).join(' ');
-        if(expr && (n.includes(' ' + expr + ' ') || n.includes(' ' + expr + 's '))){ if(expr.length > long){ long = expr.length; meilleur = r; } }
-      }
-    }
-  }
-  return meilleur;
-}
-const ordreRayon = r => { const i = RAYONS.findIndex(x => x[0] === r); return i < 0 ? 99 : i; };
+const URGENCES = [['urgent','Urgent'],['bientot','Bientôt'],['unjour','Un jour']];
+const libUrg = u => (URGENCES.find(x => x[0] === u) || URGENCES[1])[1];
 
 const auth = firebase.auth(), fs = firebase.firestore();
 try { await fs.enablePersistence({synchronizeTabs:true}); } catch(e) {}
 auth.getRedirectResult().catch(()=>{});
-const col = fs.collection('courses');
-const freq = fs.collection('courses_frequents');
+const col = fs.collection('reparations');
 
-let items = [], frequents = [], loaded = false, moi = null, finir = false;
+let items = [], loaded = false, moi = null;
 let personnes = {a:'Personne A', b:'Personne B'};
 
-function ilYa(ms){
-  const min = Math.round((Date.now() - ms)/60000);
-  if(min < 1) return 'à l’instant'; if(min < 60) return `il y a ${min} min`;
-  const h = Math.round(min/60); if(h < 24) return `il y a ${h} h`;
-  const j = Math.round(h/24); return j === 1 ? 'hier' : `il y a ${j} jours`;
+function depuis(ms){
+  if(!ms) return '';
+  const j = Math.floor((Date.now() - ms)/86400000);
+  if(j < 1) return 'aujourd’hui';
+  if(j === 1) return 'hier';
+  if(j < 14) return `il y a ${j} jours`;
+  if(j < 60) return `il y a ${Math.round(j/7)} semaines`;
+  return `il y a ${Math.round(j/30)} mois`;
+}
+const ms = t => t && t.toMillis ? t.toMillis() : (typeof t === 'number' ? t : 0);
+const nom = x => personnes[x] || '';
+
+function ligne(x){
+  const vieux = !x.fait && Date.now() - ms(x.ts) > 30*86400000;
+  const meta = x.fait
+    ? `réglé ${depuis(ms(x.faitLe))}${x.faitPar ? ' par <b class="who-' + x.faitPar + '">' + esc(nom(x.faitPar)) + '</b>' : ''}`
+    : `noté ${vieux ? '<span class="vieux">' + depuis(ms(x.ts)) + '</span>' : depuis(ms(x.ts))}${x.cle ? ' par ' + esc(nom(x.cle)) : ''}`;
+  return `<li class="r-item${x.fait?' fait':''}" data-id="${x.id}">
+    <button class="check${x.fait?' on':''}" data-fait="${x.id}" aria-pressed="${x.fait?'true':'false'}" aria-label="${x.fait?'Remettre à faire':'C’est réglé'} : ${esc(x.titre)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
+    <div class="txt">
+      <span class="name">${esc(x.titre)}</span>
+      ${x.fait ? (x.note ? `<span class="meta">${esc(x.note)}</span>` : '') : `<textarea rows="1" data-note="${x.id}" placeholder="Une précision ? (quoi acheter, qui appeler…)" aria-label="Précision">${esc(x.note||'')}</textarea>`}
+      <span class="meta">${meta}</span>
+    </div>
+    <div class="r-actions">
+      ${x.fait ? '' : `<button class="urg u-${x.urgence||'bientot'}" data-urg="${x.id}" title="Changer l’urgence">${libUrg(x.urgence)}</button>`}
+      <button class="x" data-suppr="${x.id}" aria-label="Supprimer ${esc(x.titre)}">×</button>
+    </div>
+  </li>`;
 }
 
 function render(){
   if(!loaded || !moi) return;
-  const aPrendre = items.filter(x => !x.pris), pris = items.filter(x => x.pris);
-  const parRayon = {};
-  aPrendre.forEach(x => { (parRayon[x.rayon || 'Autre'] = parRayon[x.rayon || 'Autre'] || []).push(x); });
-  const dejaLa = new Set(items.map(x => sansAccent(x.nom)));
-  const idees = frequents.filter(f => !dejaLa.has(f.id)).slice(0, 12);
-  const ligne = x => `<li class="c-item${x.pris?' pris':''}">
-      <button class="check${x.pris?' on':''}" data-pris="${x.id}" aria-pressed="${x.pris?'true':'false'}" aria-label="${x.pris?'Remettre dans la liste':'Mis dans le panier'} : ${esc(x.nom)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
-      <div class="txt" data-pris="${x.id}"><span class="name">${esc(x.nom)}</span><span class="meta">${x.par ? 'ajouté par ' + esc(personnes[x.cle] || x.par) : ''}${x.ts && x.ts.toMillis ? ' · ' + ilYa(x.ts.toMillis()) : ''}</span></div>
-      <button class="x" data-suppr="${x.id}" aria-label="Retirer ${esc(x.nom)}">×</button>
-    </li>`;
-
+  const ouverts = items.filter(x => !x.fait), faits = items.filter(x => x.fait).sort((a,b)=>ms(b.faitLe)-ms(a.faitLe));
+  const groupes = URGENCES.map(([u, lib]) => [u, lib, ouverts.filter(x => (x.urgence||'bientot') === u).sort((a,b)=>ms(a.ts)-ms(b.ts))]).filter(g => g[2].length);
   app.innerHTML = `
     <form class="add-form" id="ajout" autocomplete="off">
-      <input id="nouveau" placeholder="Ajouter un article, ex. 2 baguettes" aria-label="Article à ajouter" enterkeyhint="done">
+      <input id="titre" placeholder="Ex. ampoule de la salle de bain grillée" aria-label="Ce qu’il faut réparer" enterkeyhint="done">
+      <select id="urgence" aria-label="Urgence">${URGENCES.map(([u,l])=>`<option value="${u}"${u==='bientot'?' selected':''}>${l}</option>`).join('')}</select>
       <button type="submit">Ajouter</button>
     </form>
-
-    ${aPrendre.length ? Object.keys(parRayon).sort((a,b)=>ordreRayon(a)-ordreRayon(b)).map(r => `<section class="rayon"><h3>${esc(r)}</h3><ul class="c-list">${parRayon[r].sort((a,b)=>a.nom.localeCompare(b.nom)).map(ligne).join('')}</ul></section>`).join('')
-      : `<p class="calm">${pris.length ? 'Tout est dans le panier.' : 'La liste est vide.'}</p>`}
-
-    ${pris.length ? `<section class="rayon"><h3>Dans le panier (${pris.length})</h3><ul class="c-list">${pris.map(ligne).join('')}</ul></section>
-      ${finir ? `<div class="finish">
-        <strong>Fin des courses</strong>
-        <p class="hint" style="margin:0">Le montant du ticket part dans les dépenses du mois, partagé selon vos salaires. Laisse vide si ce n’est pas une dépense commune.</p>
-        <div class="row2"><input id="montant" inputmode="decimal" placeholder="0,00" aria-label="Montant du ticket"> <span>€ payé par</span>
-          <select id="payeur" aria-label="Payé par"><option value="a"${moi.cle==='a'?' selected':''}>${esc(personnes.a)}</option><option value="b"${moi.cle==='b'?' selected':''}>${esc(personnes.b)}</option></select></div>
-        <div class="row2"><button class="btn" id="valider">Terminer</button><button class="btn ghost" id="annulerFin">Pas encore</button></div>
-      </div>` : `<button class="btn" id="fin" style="align-self:flex-start">J’ai fini les courses</button>`}` : ''}
-
-    ${idees.length ? `<section><h3 style="font-size:16px;font-weight:500;font-style:italic;color:var(--green);margin:0 0 8px">Souvent achetés</h3>
-      <div class="chips">${idees.map(f => `<button data-idee="${esc(f.nom)}">${esc(f.nom)}</button>`).join('')}</div></section>` : ''}
-
+    ${groupes.length ? groupes.map(([u, lib, l]) => `<section class="groupe ${u}"><h3>${lib}</h3><ul class="r-list">${l.map(ligne).join('')}</ul></section>`).join('')
+      : '<p class="calm">Rien à réparer pour l’instant.</p>'}
+    ${faits.length ? `<details class="bloc"><summary><span>Réglé</span><span class="tally">${faits.length}</span></summary><ul class="r-list">${faits.slice(0,30).map(ligne).join('')}</ul></details>` : ''}
     <div class="foot"><span class="hint">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b></span></div>`;
-
-  $('#ajout').onsubmit = e => { e.preventDefault(); const v = $('#nouveau').value.trim(); if(v){ ajouter(v); $('#nouveau').value = ''; $('#nouveau').focus(); } };
-  const f = $('#fin'); if(f) f.onclick = () => { finir = true; render(); const m = $('#montant'); if(m) m.focus(); };
-  const a = $('#annulerFin'); if(a) a.onclick = () => { finir = false; render(); };
-  const v = $('#valider'); if(v) v.onclick = terminer;
+  $('#ajout').onsubmit = async e => {
+    e.preventDefault();
+    const t = $('#titre').value.trim(); if(!t) return;
+    const urg = $('#urgence').value;
+    $('#titre').value = '';
+    await col.add({titre: t.charAt(0).toUpperCase() + t.slice(1), note:'', urgence: urg, fait:false, cle: moi.cle, ts: firebase.firestore.FieldValue.serverTimestamp()});
+  };
+  app.querySelectorAll('textarea').forEach(a => { a.style.height = 'auto'; a.style.height = a.scrollHeight + 'px'; });
 }
 
-async function ajouter(nom){
-  nom = nom.charAt(0).toUpperCase() + nom.slice(1);
-  if(items.some(x => !x.pris && sansAccent(x.nom) === sansAccent(nom))){ flash(`${nom} est déjà dans la liste.`); return; }
-  await col.add({nom, rayon: devinerRayon(nom), pris:false, par: moi.nom, cle: moi.cle, ts: firebase.firestore.FieldValue.serverTimestamp()});
-}
-
-async function terminer(){
-  const montant = parseFloat(String($('#montant').value).replace(/\s/g,'').replace(',','.'));
-  const payeur = $('#payeur').value;
-  const pris = items.filter(x => x.pris);
-  const b = fs.batch();
-  pris.forEach(x => {
-    b.delete(col.doc(x.id));
-    // « 2 baguettes » est retenu comme « Baguettes » dans les articles souvent achetés
-    let base = x.nom.replace(/^\s*\d+([.,]\d+)?\s*(x|kg|g|l|cl|ml|paquets?|boites?|bouteilles?)?\s+/i,'').trim() || x.nom;
-    base = base.charAt(0).toUpperCase() + base.slice(1);
-    const id = sansAccent(base).replace(/[\/.#\[\]]/g,' ').slice(0,100) || 'article';
-    b.set(freq.doc(id), {nom: base, fois: firebase.firestore.FieldValue.increment(1), dernier: firebase.firestore.FieldValue.serverTimestamp()}, {merge:true});
-  });
-  if(isFinite(montant) && montant > 0){
-    const d = new Date(), cle = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-    const jour = d.toLocaleDateString('fr-FR',{day:'numeric', month:'long'});
-    b.set(fs.doc('mois/' + cle), {depenses: firebase.firestore.FieldValue.arrayUnion({id: Math.random().toString(36).slice(2,9), label: `Courses du ${jour}`, montant: Math.round(montant*100)/100, payeur})}, {merge:true});
-  }
-  await b.commit();
-  finir = false;
-  flash(isFinite(montant) && montant > 0 ? 'Courses terminées, le ticket est ajouté au budget du mois.' : 'Courses terminées.');
-}
-
+const timers = {};
+app.addEventListener('input', e => {
+  const a = e.target.closest('[data-note]'); if(!a) return;
+  a.style.height = 'auto'; a.style.height = a.scrollHeight + 'px';
+  clearTimeout(timers[a.dataset.note]);
+  timers[a.dataset.note] = setTimeout(() => col.doc(a.dataset.note).update({note: a.value.trim()}).then(()=>flash('Enregistré')).catch(()=>flash("L'enregistrement a échoué.")), 600);
+});
 app.addEventListener('click', async e => {
-  const p = e.target.closest('[data-pris]');
-  if(p){ const x = items.find(i => i.id === p.dataset.pris); if(x) await col.doc(x.id).update({pris: !x.pris}); return; }
+  const f = e.target.closest('[data-fait]');
+  if(f){
+    const x = items.find(i => i.id === f.dataset.fait); if(!x) return;
+    await col.doc(x.id).update(x.fait ? {fait:false, faitPar:null, faitLe:null} : {fait:true, faitPar: moi.cle, faitLe: firebase.firestore.FieldValue.serverTimestamp()});
+    return;
+  }
+  const u = e.target.closest('[data-urg]');
+  if(u){
+    const x = items.find(i => i.id === u.dataset.urg); if(!x) return;
+    const ordre = URGENCES.map(z => z[0]); const suiv = ordre[(ordre.indexOf(x.urgence||'bientot') + 1) % ordre.length];
+    await col.doc(x.id).update({urgence: suiv}); return;
+  }
   const s = e.target.closest('[data-suppr]');
-  if(s){ await col.doc(s.dataset.suppr).delete(); return; }
-  const i = e.target.closest('[data-idee]');
-  if(i){ await ajouter(i.dataset.idee); return; }
+  if(s){
+    if(s.dataset.confirm){ await col.doc(s.dataset.suppr).delete(); return; }
+    s.dataset.confirm = '1'; s.textContent = 'Sûr ?'; s.style.width = 'auto'; s.style.fontSize = '14px'; s.style.color = 'var(--red)';
+    setTimeout(()=>{ if(document.body.contains(s)){ delete s.dataset.confirm; s.textContent='×'; s.style.width=''; s.style.fontSize=''; s.style.color=''; } }, 3000);
+  }
 });
 
 function loginBox(){
@@ -458,7 +425,7 @@ function refuse(){
 }
 function choisirNom(u){
   app.innerHTML = `<div class="notice"><h2>Qui es-tu ?</h2>
-    <p class="muted" style="margin:0">Pour savoir qui a ajouté quoi. Je ne te le demanderai qu’une fois.</p>
+    <p class="muted" style="margin:0">Pour savoir qui a noté quoi. Je ne te le demanderai qu’une fois.</p>
     <div class="toolbar"><button class="primary" data-cle="a">${esc(personnes.a)}</button><button class="primary" data-cle="b">${esc(personnes.b)}</button></div></div>`;
   app.querySelectorAll('[data-cle]').forEach(b => b.onclick = async () => {
     const cle = b.dataset.cle; moi = {uid:u.uid, cle, nom:personnes[cle]};
@@ -481,17 +448,16 @@ auth.onAuthStateChanged(async u => {
   col.onSnapshot(snap => {
     items = snap.docs.map(d => ({id:d.id, ...d.data()}));
     loaded = true;
-    if(document.activeElement && document.activeElement.id === 'montant') return; // on ne coupe pas la saisie du ticket
-    const garde = $('#nouveau') && document.activeElement === $('#nouveau');
-    const val = $('#nouveau') ? $('#nouveau').value : '';
+    const a = document.activeElement;
+    if(a && (a.id === 'titre' || a.matches('textarea'))) { // on ne coupe pas une saisie en cours
+      const v = a.id === 'titre' ? a.value : null;
+      if(a.matches('textarea')) return;
+      render(); $('#titre').value = v; $('#titre').focus(); return;
+    }
     render();
-    if(garde){ $('#nouveau').value = val; $('#nouveau').focus(); }
   }, refuse);
-  freq.orderBy('fois','desc').limit(30).onSnapshot(snap => {
-    frequents = snap.docs.map(d => ({id:d.id, ...d.data()}));
-    if(!(document.activeElement && ['nouveau','montant'].includes(document.activeElement.id))) render();
-  }, () => {});
 });
+app.addEventListener('focusout', e => { if(e.target.matches('textarea')) setTimeout(() => { if(!document.activeElement.matches('textarea')) render(); }, 700); });
 $('#logout').onclick = () => auth.signOut().then(()=>location.reload());
 })();
 </script>

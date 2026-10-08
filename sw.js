@@ -1,7 +1,7 @@
 // Garde une copie de l'appli pour qu'elle s'ouvre vite, même avec peu de réseau.
 // Les données du budget, elles, passent toujours par Firebase.
-const CACHE = 'cheznous-v10';
-const FICHIERS = ['./', './index.html', './menage.html', './courses.html', './planning.js', './firebase-config.js', './manifest.webmanifest',
+const CACHE = 'cheznous-v11';
+const FICHIERS = ['./', './index.html', './menage.html', './courses.html', './reparations.html', './planning.js', './firebase-config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -49,14 +49,14 @@ self.addEventListener('push', e => {
     body: d.body || 'Il y a des choses à faire aujourd\u2019hui.',
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
-    tag: 'menage',
+    tag: d.tag || 'menage',
     data: { url: d.url || './menage.html' }
   }));
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  const cible = new URL(e.notification.data && e.notification.data.url || './menage.html', './courses.html', self.registration.scope).href;
+  const cible = new URL(e.notification.data && e.notification.data.url || './menage.html', './courses.html', './reparations.html', self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(fen => {
     for (const f of fen) { if (f.url.startsWith(self.registration.scope)) { f.navigate(cible); return f.focus(); } }
     return self.clients.openWindow(cible);

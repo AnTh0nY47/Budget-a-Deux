@@ -245,6 +245,10 @@ details.later[open] summary{margin-bottom:10px}
 .foot{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;border-top:1px solid var(--line);padding-top:14px}
 #app{display:flex;flex-direction:column;gap:28px}
 @media (prefers-reduced-motion:reduce){.progress i{transition:none}}
+.tabs{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tabs a{white-space:nowrap}
+@media (max-width:420px){.tabs a{padding:6px 11px;font-size:15px}}
 </style>
 </head>
 <body>
@@ -256,7 +260,7 @@ details.later[open] summary{margin-bottom:10px}
 </svg>
 </div>
 <div class="wrap">
-  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html" aria-current="page">Ménage</a><a href="courses.html">Courses</a></nav>
+  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html" aria-current="page">Ménage</a><a href="courses.html">Courses</a><a href="reparations.html">À réparer</a></nav>
   <header>
     <div>
       <h1>Le ménage</h1>
