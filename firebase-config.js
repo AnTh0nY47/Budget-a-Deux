@@ -9,4 +9,4 @@ window.FIREBASE_CONFIG = {
 };
 
 // Clé pour les notifications (Firebase, Paramètres du projet, Cloud Messaging, Certificats Web Push)
-window.FIREBASE_VAPID_KEY = "A_REMPLIR";
+window.FIREBASE_VAPID_KEY = "BKdDjYQ-lrUofJohRdxowAo3bfora6tan_VhRVlvdOcyDZpSEYCkgE7NoyYcnCFu_KXcH99GKajmyJ5e18fAL04";
