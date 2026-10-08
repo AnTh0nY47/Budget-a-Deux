@@ -201,6 +201,50 @@ details.later[open] summary{margin-bottom:10px}
 .chip small{color:var(--faint);font-style:italic}
 .chip:hover{border-style:solid}
 @media (max-width:560px){ .edit-row{grid-template-columns:minmax(0,1fr) 30px !important;grid-template-areas:"n d" "f d" !important} }
+
+/* liste du jour, version légère */
+.today-block{display:flex;flex-direction:column;gap:10px}
+.day-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.day-head h2{font-size:30px}
+.day-head .date{color:var(--muted);font-style:italic}
+.progress{height:4px;background:var(--line);border-radius:999px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--green);border-radius:999px;transition:width .4s ease}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.item{display:flex;align-items:center;gap:14px;padding:12px 2px;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item .txt{display:flex;flex-direction:column;min-width:0}
+.item .name{font-size:19px;line-height:1.25}
+.item .meta{font-size:15px;color:var(--muted);font-style:italic}
+.item .late{color:var(--red);font-style:normal}
+.check{flex:none;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--green);background:transparent;display:grid;place-items:center;padding:0;cursor:pointer}
+.check svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.check:hover{background:var(--green-soft)}
+.check.on{background:var(--green)}
+.check.on svg{opacity:1}
+.item.fait .name{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line)}
+.done-list{margin-top:-2px}
+.list.small .name{font-size:17px}
+.list.small .check{width:26px;height:26px}
+.calm{margin:0;color:var(--muted);font-style:italic;font-size:18px}
+.next-block h3{font-size:19px;font-weight:500;font-style:italic;color:var(--green);margin:0 0 6px}
+.next-day{display:grid;grid-template-columns:7.5em 1fr;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:16px}
+.next-day:last-child{border-bottom:0}
+.next-day .dn{color:var(--muted)}
+.bloc{border-top:1px solid var(--line);padding-top:12px}
+.bloc summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;font-size:18px}
+.bloc summary::-webkit-details-marker{display:none}
+.bloc summary::after{content:'›';color:var(--faint);transition:transform .2s}
+.bloc[open] summary::after{transform:rotate(90deg)}
+.bloc summary>span:first-child{white-space:nowrap}
+.bloc summary .tally{margin-left:auto;color:var(--muted);font-size:16px;text-align:right}
+.bloc[open] summary{margin-bottom:8px}
+.hlist{list-style:none;margin:0;padding:0}
+.hlist li{display:flex;gap:8px;padding:6px 0;font-size:16px;border-bottom:1px solid var(--line)}
+.hlist li:last-child{border-bottom:0}
+.hlist small{margin-left:auto;color:var(--faint);font-style:italic;white-space:nowrap}
+.foot{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;border-top:1px solid var(--line);padding-top:14px}
+#app{display:flex;flex-direction:column;gap:28px}
+@media (prefers-reduced-motion:reduce){.progress i{transition:none}}
 </style>
 </head>
 <body>
@@ -275,60 +319,49 @@ let moi = null;            // {uid, nom, cle}
 let personnes = {a:'Personne A', b:'Personne B'};
 
 /* ---------- affichage ---------- */
-function etat(t){
-  const n = P.dans(t, today(), parId);
-  let quand;
-  if(t.apres && n === 999) quand = esc(P.frequence(t, parId).replace('après','en attente de'));
-  else if(!t.dernier && !t.apres && !(t.joursSemaine||[]).length) quand = '<span class="today">jamais fait</span>';
-  else if(n < 0) quand = `<span class="late">en retard de ${-n} jour${-n>1?'s':''}</span>`;
-  else if(n === 0) quand = '<span class="today">aujourd’hui</span>';
-  else if(n === 1) quand = 'demain';
-  else quand = `dans ${n} jours`;
-  let fait = '';
-  if(t.dernier){
-    const il = Math.round((today() - P.lireJour(t.dernier))/86400000);
-    fait = (il === 0 ? 'fait aujourd’hui' : il === 1 ? 'fait hier' : `fait il y a ${il} jours`) + (t.par ? ` par <b class="who-${t.cle||''}">${esc(t.par)}</b>` : '');
-  }
-  return {n, html: [quand, fait].filter(Boolean).join(' · ')};
-}
+const jamais = t => !t.dernier && !t.apres && !(t.joursSemaine||[]).length;
+const ilYa = j => { const il = Math.round((today() - P.lireJour(j))/86400000); return il===0?'aujourd’hui':il===1?'hier':`il y a ${il} jours`; };
+const qui = t => t.par ? ` par <b class="who-${t.cle||''}">${esc(t.par)}</b>` : '';
 
-function tacheHtml(t){
-  const e = etat(t);
-  const fait = t.dernier === isoDay(today());
-  return `<div class="task${fait?' is-done':''}" data-id="${t.id}">
-    <div class="txt"><span class="name">${esc(t.nom)}</span>
-    <span class="meta">${e.html}</span></div>
-    ${fait ? '<span class="done-tag">Fait ✓</span>' : `<button class="done-btn" data-done="${t.id}">C’est fait</button>`}</div>`;
+// Une ligne à cocher. variante : 'jour' (aujourd'hui), 'fait', 'bientot', 'jamais'
+function ligne(t, variante){
+  const n = P.dans(t, today(), parId);
+  let sous = '';
+  if(variante === 'jour'){
+    if(n < 0) sous = `<span class="late">en retard de ${-n} jour${-n>1?'s':''}</span>`;
+    else if(t.apres) sous = 'suite de « ' + esc((parId[t.apres]||{}).nom||'') + ' »';
+    else if(t.dernier) sous = 'dernière fois ' + ilYa(t.dernier) + qui(t);
+  } else if(variante === 'fait'){
+    sous = 'fait' + qui(t);
+  } else if(variante === 'jamais'){
+    sous = esc(P.frequence(t, parId));
+  }
+  const coche = variante === 'fait';
+  return `<li class="item ${variante}">
+    <button class="check${coche?' on':''}" ${coche?'disabled':''} data-done="${t.id}" aria-label="${coche?'Fait':'Marquer comme fait'} : ${esc(t.nom)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
+    <div class="txt"><span class="name">${esc(t.nom)}</span>${sous?`<span class="meta">${sous}</span>`:''}</div>
+  </li>`;
 }
 
 function histoHtml(){
-  if(!histo.length) return '';
   const debut = new Date(today().getFullYear(), today().getMonth(), 1);
-  const duMois = histo.filter(h => P.lireJour(h.jour) >= debut);
-  const cpt = {a:0, b:0}; duMois.forEach(h => { if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
+  const cpt = {a:0, b:0};
+  histo.filter(h => P.lireJour(h.jour) >= debut).forEach(h => { if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
   const mois = debut.toLocaleDateString('fr-FR',{month:'long'});
-  const jourTxt = j => { const il = Math.round((today() - P.lireJour(j))/86400000); return il===0?'aujourd’hui':il===1?'hier':`il y a ${il} jours`; };
-  return `<section class="group">
-    <h2>Qui a fait quoi</h2>
-    <div class="score">
-      <div class="who-a"><span>${esc(personnes.a)}</span><b>${cpt.a}</b><small>tâche${cpt.a>1?'s':''} en ${mois}</small></div>
-      <div class="who-b"><span>${esc(personnes.b)}</span><b>${cpt.b}</b><small>tâche${cpt.b>1?'s':''} en ${mois}</small></div>
-    </div>
-    <div class="tasks histo">${histo.slice(0,10).map(h => `<div class="hrow"><i class="dot-${h.cle||''}"></i><span><b>${esc(h.par)}</b> ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}</span><small>${jourTxt(h.jour)}</small></div>`).join('')}</div>
-  </section>`;
+  return `<details class="bloc histo">
+    <summary><span>En ${mois}</span><span class="tally"><b class="who-a">${esc(personnes.a)}</b> ${cpt.a} · <b class="who-b">${esc(personnes.b)}</b> ${cpt.b}</span></summary>
+    ${histo.length ? `<ul class="hlist">${histo.slice(0,15).map(h => `<li><b class="who-${h.cle||''}">${esc(h.par)}</b> ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}<small>${ilYa(h.jour)}</small></li>`).join('')}</ul>` : '<p class="hint">Rien de noté pour l’instant.</p>'}
+  </details>`;
 }
 
 function notifHtml(){
   const ok = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
   const vapid = window.FIREBASE_VAPID_KEY && !/A_REMPLIR/.test(window.FIREBASE_VAPID_KEY);
   if(!vapid) return '';
-  if(ok && Notification.permission === 'granted' && localStorage.getItem('notifOK')) return `<p class="hint" style="margin:0">Rappel activé sur ce téléphone, chaque soir s’il y a des choses à faire.</p>`;
-  if(!ok){
-    const ios = /iPhone|iPad/.test(navigator.userAgent);
-    const installee = window.navigator.standalone || matchMedia('(display-mode: standalone)').matches;
-    return `<p class="hint" style="margin:0">${ios && !installee ? 'Pour recevoir un rappel le soir, ouvre l’appli depuis son icône sur l’écran d’accueil.' : 'Ce téléphone ne peut pas recevoir de notifications. Sur iPhone, il faut iOS 16.4 ou plus récent.'}</p>`;
-  }
-  return `<button class="add" id="notif">Recevoir un rappel le soir</button>`;
+  let actif = false; try{ actif = ok && Notification.permission === 'granted' && localStorage.getItem('notifOK'); }catch(e){}
+  if(actif) return `<span class="hint">Rappel du soir activé</span>`;
+  if(!ok) return '';
+  return `<button class="link" id="notif">Activer le rappel du soir</button>`;
 }
 
 function render(){
@@ -340,17 +373,50 @@ function render(){
     $('#seed').onclick = seed; return;
   }
   if(editing) return renderEdit();
-  const avec = tasks.map(t => ({t, e: etat(t)})).sort((a,b) => a.e.n - b.e.n || a.t.nom.localeCompare(b.t.nom));
-  const now = avec.filter(x => x.e.n <= 0), soon = avec.filter(x => x.e.n > 0 && x.e.n <= 7), later = avec.filter(x => x.e.n > 7 && x.e.n !== 999 || (x.e.n === 999 && !x.t.apres)), attente = avec.filter(x => x.e.n === 999 && x.t.apres);
-  const list = arr => `<div class="tasks">${arr.map(x=>tacheHtml(x.t)).join('')}</div>`;
-  app.innerHTML = `<div class="groups">
-    <p class="hint" style="margin:0">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b>.</p>
-    <section class="group"><h2>À faire maintenant${now.length?` <small>${now.length}</small>`:''}</h2>
-      ${now.length ? list(now) : '<div class="tasks"><div class="empty-good">Tout est à jour. Profitez-en.</div></div>'}</section>
-    ${soon.length ? `<section class="group"><h2>Cette semaine</h2>${list(soon)}</section>` : ''}
-    ${later.length || attente.length ? `<details class="later group"><summary>Plus tard (${later.length + attente.length})</summary>${list(later.concat(attente))}</details>` : ''}
-    ${histoHtml()}
-    <div class="toolbar"><button class="add" id="edit">Modifier la liste</button>${notifHtml()}</div>
+
+  const auj = isoDay(today());
+  const tri = (a,b) => a.n - b.n || a.t.nom.localeCompare(b.t.nom);
+  const tout = tasks.map(t => ({t, n: P.dans(t, today(), parId)}));
+  const faits = tout.filter(x => x.t.dernier === auj);
+  const reste = tout.filter(x => x.t.dernier !== auj);
+  const jour = reste.filter(x => !jamais(x.t) && x.n <= 0).sort(tri);
+  const neuves = reste.filter(x => jamais(x.t)).sort((a,b)=>a.t.nom.localeCompare(b.t.nom));
+  const bientot = reste.filter(x => !jamais(x.t) && x.n >= 1 && x.n <= 7).sort(tri);
+
+  // Les prochains jours, regroupés par date
+  const parJour = {};
+  bientot.forEach(x => { (parJour[x.n] = parJour[x.n] || []).push(x.t); });
+  const nomJour = n => { if(n === 1) return 'Demain'; const d = new Date(today()); d.setDate(d.getDate()+n); const s = d.toLocaleDateString('fr-FR',{weekday:'long'}); return s.charAt(0).toUpperCase()+s.slice(1); };
+
+  const dateTxt = (() => { const s = today().toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'}); return s.charAt(0).toUpperCase()+s.slice(1); })();
+  const total = jour.length + faits.length;
+
+  app.innerHTML = `
+  <section class="today-block">
+    <div class="day-head"><h2>Aujourd’hui</h2><span class="date">${dateTxt}</span></div>
+    ${total ? `<div class="progress" aria-hidden="true"><i style="width:${Math.round(faits.length/total*100)}%"></i></div>
+      <p class="hint">${jour.length ? `${faits.length} sur ${total} fait${faits.length>1?'s':''}` : 'Tout est fait pour aujourd’hui.'}</p>` : ''}
+    ${jour.length ? `<ul class="list">${jour.map(x => ligne(x.t,'jour')).join('')}</ul>` : (faits.length ? '' : '<p class="calm">Rien à faire aujourd’hui.</p>')}
+    ${faits.length ? `<ul class="list done-list">${faits.map(x => ligne(x.t,'fait')).join('')}</ul>` : ''}
+  </section>
+
+  ${Object.keys(parJour).length ? `<section class="next-block">
+    <h3>Les prochains jours</h3>
+    ${Object.keys(parJour).map(Number).sort((a,b)=>a-b).map(n => `<div class="next-day"><span class="dn">${nomJour(n)}</span><span class="dt">${parJour[n].map(t=>esc(t.nom)).join(', ')}</span></div>`).join('')}
+  </section>` : ''}
+
+  ${neuves.length ? `<details class="bloc">
+    <summary><span>Pas encore faites</span><span class="tally">${neuves.length}</span></summary>
+    <p class="hint">Cochez-les la première fois que vous les faites, elles rentreront ensuite dans le rythme.</p>
+    <ul class="list small">${neuves.map(x => ligne(x.t,'jamais')).join('')}</ul>
+  </details>` : ''}
+
+  ${histoHtml()}
+
+  <div class="foot">
+    <span class="hint">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b></span>
+    <button class="link" id="edit">Modifier la liste</button>
+    ${notifHtml()}
   </div>`;
   $('#edit').onclick = () => { editing = true; render(); };
   const nb = $('#notif'); if(nb) nb.onclick = activerNotifs;
@@ -432,7 +498,7 @@ app.addEventListener('click', async e => {
   if(d){
     const t = tasks.find(x => x.id === d.dataset.done); if(!t || d.disabled) return;
     if(t.dernier === isoDay(today())) return; // déjà fait aujourd'hui
-    d.disabled = true; d.textContent = 'Fait \u2713';
+    d.disabled = true; d.classList.add('on');
     const avant = {dernier:t.dernier||null, par:t.par||'', cle:t.cle||''};
     const jour = isoDay(today());
     const h = hist.doc();
@@ -475,7 +541,6 @@ async function ajouterSuite(suite){
     precedent = ref.id;
   }
   await b.commit();
-  flash('Ajouté');
 }
 
 // Une seule fois : met en place le linge et le lave-vaisselle chez ceux qui avaient l'ancienne liste

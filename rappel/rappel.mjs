@@ -14,7 +14,8 @@ const docs = (await db.collection('menage').get()).docs;
 const tous = Object.fromEntries(docs.map(d => [d.id, d.data()]));
 const taches = Object.values(tous);
 const dans = t => P.dans(t, aujourdhui, tous);
-const aFaire = taches.filter(t => dans(t) <= 0).sort((a, b) => dans(a) - dans(b));
+const jamais = t => !t.dernier && !t.apres && !(Array.isArray(t.joursSemaine) && t.joursSemaine.length);
+const aFaire = taches.filter(t => !jamais(t) && dans(t) <= 0).sort((a, b) => dans(a) - dans(b));
 if (!aFaire.length) { console.log('Rien à faire ce soir, aucun rappel.'); process.exit(0); }
 
 const noms = aFaire.map(t => t.nom);
