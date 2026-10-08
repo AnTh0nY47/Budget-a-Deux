@@ -249,6 +249,11 @@ details.later[open] summary{margin-bottom:10px}
 .tabs::-webkit-scrollbar{display:none}
 .tabs a{white-space:nowrap}
 @media (max-width:420px){.tabs a{padding:6px 11px;font-size:15px}}
+.manque{align-self:flex-start;border:0;background:none;padding:2px 0;margin-top:2px;color:var(--green);font:inherit;font-size:14px;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;cursor:pointer}
+.manque:hover{text-decoration-color:var(--green)}
+.manque:disabled{color:var(--faint);text-decoration:none;cursor:default}
+.edit-row .prod{grid-column:1 / -2;font-size:15px !important;color:var(--muted) !important;font-style:italic}
+@media (max-width:560px){ .edit-row{grid-template-areas:"n d" "f d" "p d" !important} .edit-row .prod{grid-area:p;grid-column:auto} }
 </style>
 </head>
 <body>
@@ -280,6 +285,7 @@ details.later[open] summary{margin-bottom:10px}
 <script src="planning.js"></script>
 <script src="firebase-config.js"></script>
 <script>firebase.initializeApp(window.FIREBASE_CONFIG);</script>
+<script src="sauvegarde.js"></script>
 <script>
 (async function(){
 const $ = s => document.querySelector(s);
@@ -322,6 +328,30 @@ let tasks = [], parId = {}, histo = [], loaded = false, editing = false;
 let moi = null;            // {uid, nom, cle}
 let personnes = {a:'Personne A', b:'Personne B'};
 
+/* ---------- produits liés aux tâches ---------- */
+// Ce qu'on utilise pour une tâche, proposé par défaut d'après son nom (modifiable dans « Modifier la liste »)
+const PRODUITS = [
+  [/poubelle/i, 'Sacs poubelle'], [/\btri\b/i, 'Sacs de tri'], [/lancer.*machine|lessive/i, 'Lessive'],
+  [/lancer.*lave-vaisselle/i, 'Pastilles lave-vaisselle'], [/vaisselle/i, 'Liquide vaisselle'],
+  [/toilettes|\bwc\b/i, 'Produit WC'], [/sols?\b/i, 'Produit sols'], [/vitres/i, 'Produit vitres'],
+  [/lavabo|douche|baignoire/i, 'Produit salle de bain'], [/plaques|plan de travail/i, 'Éponges'], [/aspirateur/i, 'Sacs d’aspirateur']
+];
+function produitDe(t){
+  if(typeof t.produit === 'string') return t.produit.trim();
+  if(t.apres) return '';
+  const m = PRODUITS.find(([re]) => re.test(t.nom));
+  return m ? m[1] : '';
+}
+const minus = s => s.charAt(0).toLowerCase() + s.slice(1);
+async function ajouterAuxCourses(nom, bouton){
+  const sans = x => x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const deja = await fs.collection('courses').where('pris','==',false).get().catch(()=>null);
+  if(deja && deja.docs.some(d => sans(d.data().nom||'') === sans(nom))){ flash(`${nom} est déjà sur la liste de courses.`); return; }
+  await fs.collection('courses').add({nom, rayon: /papier toilette/i.test(nom) ? 'Hygiène' : 'Entretien', pris:false, par: moi.nom, cle: moi.cle, ts: firebase.firestore.FieldValue.serverTimestamp()});
+  if(bouton){ bouton.textContent = 'Ajouté aux courses ✓'; bouton.disabled = true; }
+  flash(`${nom} ajouté à la liste de courses.`);
+}
+
 /* ---------- affichage ---------- */
 const jamais = t => !t.dernier && !t.apres && !(t.joursSemaine||[]).length;
 const ilYa = j => { const il = Math.round((today() - P.lireJour(j))/86400000); return il===0?'aujourd’hui':il===1?'hier':`il y a ${il} jours`; };
@@ -343,7 +373,8 @@ function ligne(t, variante){
   const coche = variante === 'fait';
   return `<li class="item ${variante}">
     <button class="check${coche?' on':''}" data-done="${t.id}" aria-pressed="${coche?'true':'false'}" aria-label="${coche?'Décocher':'Marquer comme fait'} : ${esc(t.nom)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>
-    <div class="txt"><span class="name">${esc(t.nom)}</span>${sous?`<span class="meta">${sous}</span>`:''}</div>
+    <div class="txt"><span class="name">${esc(t.nom)}</span>${sous?`<span class="meta">${sous}</span>`:''}
+      ${(variante === 'jour' || variante === 'fait') && produitDe(t) ? `<button class="manque" data-manque="${esc(produitDe(t))}">Plus de ${esc(minus(produitDe(t)))} ?</button>` : ''}</div>
   </li>`;
 }
 
@@ -446,10 +477,11 @@ function renderEdit(){
   const idees = IDEES.filter(([n]) => !noms.has(n.toLowerCase()));
   app.innerHTML = `<section class="group">
     <div class="sec-head"><h2>Modifier la liste</h2></div>
-    <p class="hint" style="margin:0 0 10px">Tout s’enregistre au fur et à mesure. Pour les poubelles, choisis « jours précis » et coche les jours où il faut les sortir.</p>
+    <p class="hint" style="margin:0 0 10px">Tout s’enregistre au fur et à mesure. Pour les poubelles, choisis « jours précis » et coche les jours où il faut les sortir. Le produit utilisé fait apparaître un bouton pour l’ajouter aux courses quand il n’y en a plus.</p>
     <div class="tasks">${tasks.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(t => `<div class="edit-row" data-id="${t.id}">
       <input class="n" data-f="nom" value="${esc(t.nom)}" aria-label="Tâche">
       ${freqHtml(t)}
+      <input class="prod" data-f="produit" value="${esc(produitDe(t))}" placeholder="Produit utilisé (optionnel)" aria-label="Produit utilisé pour ${esc(t.nom)}">
       <button class="del" data-del="${t.id}" aria-label="Supprimer ${esc(t.nom)}">×</button></div>`).join('')}</div>
     <div class="toolbar" style="margin-top:12px"><button class="add" id="addTask">Ajouter une tâche</button><button class="link" id="back">Terminé</button></div>
     <div class="idees"><p class="hint" style="margin:14px 0 8px">Tâches qui s\u2019enchaînent</p>${Object.entries(SUITES).filter(([k,v]) => !v.etapes.every(([n]) => noms.has(n.toLowerCase())) || !tasks.some(t=>t.apres && v.etapes.some(([n])=>n.toLowerCase()===t.nom.toLowerCase()))).map(([k,v])=>`<button class="chip" data-suite="${k}">${esc(v.titre)}</button>`).join('') || '<p class="hint" style="margin:0">Déjà en place.</p>'}</div>
@@ -468,7 +500,7 @@ function sauverLigne(row){
   clearTimeout(timers[id]);
   timers[id] = setTimeout(() => {
     const u = row.querySelector('[data-f="u"]').value;
-    const maj = { nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom' };
+    const maj = { nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom', produit: row.querySelector('[data-f="produit"]').value.trim() };
     if(u === 'a'){
       maj.apres = row.querySelector('[data-f="apres"]').value || null;
       maj.delai = parseInt(row.querySelector('[data-f="delai"]').value,10) || 0;
@@ -496,6 +528,8 @@ app.addEventListener('change', e => {
 
 let toastTimer = null;
 app.addEventListener('click', async e => {
+  const manque = e.target.closest('[data-manque]');
+  if(manque){ if(!manque.disabled) await ajouterAuxCourses(manque.dataset.manque, manque); return; }
   const day = e.target.closest('[data-day]');
   if(day){ day.classList.toggle('on'); day.setAttribute('aria-pressed', day.classList.contains('on')); sauverLigne(day.closest('.edit-row')); return; }
   const d = e.target.closest('[data-done]');
@@ -653,6 +687,7 @@ auth.onAuthStateChanged(async u => {
     if(m.exists) moi = {uid:u.uid, cle:m.data().cle, nom:personnes[m.data().cle]};
   }catch(e){ return refuse(); }
   if(!moi) choisirNom(u);
+  setTimeout(() => window.Sauvegarde && Sauvegarde.auto(fs), 3000);
   col.onSnapshot(snap => {
     tasks = snap.docs.map(d => {
       const t = {id:d.id, ...d.data()};

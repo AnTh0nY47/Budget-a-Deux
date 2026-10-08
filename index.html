@@ -164,6 +164,14 @@ fieldset:disabled .add,fieldset:disabled .del{display:none}
 .bloc summary{display:flex;justify-content:space-between;cursor:pointer;list-style:none;font-size:17px;color:var(--green)}
 .bloc summary::-webkit-details-marker{display:none}
 .bloc[open] summary{margin-bottom:8px}
+.sauvegardes{margin-top:28px}
+.sv-list{list-style:none;margin:8px 0;padding:0}
+.sv-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)}
+.sv-list li:last-child{border-bottom:0}
+.sv-list li>span{display:flex;flex-direction:column}
+.sv-date{text-transform:capitalize}
+.sv-list small{color:var(--faint);font-style:italic}
+.sv-actions{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-top:8px}
 </style>
 </head>
 <body>
@@ -201,6 +209,7 @@ fieldset:disabled .add,fieldset:disabled .del{display:none}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>firebase.initializeApp(window.FIREBASE_CONFIG);</script>
+<script src="sauvegarde.js"></script>
 <script>
 (function(){
 const $ = s => document.querySelector(s);
@@ -330,9 +339,34 @@ function renderAll(){
         <label>Personne B<input id="nb" data-name="b" value="${esc(N.b)}"></label>
       </div>
     </section>
-  </fieldset>`;
+  </fieldset>
+  <details class="bloc sauvegardes" id="sauv">
+    <summary><span>Sauvegardes</span></summary>
+    <div id="sauvListe"><p class="hint">Chargement…</p></div>
+  </details>`;
   renderSummary();
   renderSuivi();
+  const sv = $('#sauv'); if(sv) sv.addEventListener('toggle', () => { if(sv.open) renderSauvegardes(); });
+}
+
+/* ---------- sauvegardes ---------- */
+async function renderSauvegardes(){
+  const box = $('#sauvListe'); if(!box || !window.__fs) return;
+  let liste = [];
+  try{ liste = await Sauvegarde.lister(window.__fs); }catch(e){ box.innerHTML = '<p class="hint">Impossible de lire les sauvegardes.</p>'; return; }
+  const quand = ms => new Date(ms).toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'}) + ' à ' + new Date(ms).toLocaleTimeString('fr-FR',{hour:'2-digit', minute:'2-digit'});
+  box.innerHTML = `
+    <p class="hint">L’appli se sauvegarde toute seule une fois par semaine et garde les ${8} dernières. Restaurer remet toutes les données (budget, ménage, courses, à réparer) comme à cette date. L’état actuel est sauvegardé juste avant, donc on peut toujours revenir en arrière.</p>
+    ${liste.length ? `<ul class="sv-list">${liste.map(x => `<li><span><span class="sv-date">${quand(x.date)}</span><small>${esc(x.raison||'')}</small></span><button class="link" data-restaurer="${x.id}">Restaurer</button></li>`).join('')}</ul>` : '<p class="hint">Aucune sauvegarde pour l’instant.</p>'}
+    <div class="sv-actions"><button class="add" id="svMaintenant">Sauvegarder maintenant</button><button class="link" id="svTelecharger">Télécharger toutes nos données</button></div>`;
+  $('#svMaintenant').onclick = async () => { flash('Sauvegarde en cours'); try{ await Sauvegarde.creer(window.__fs, 'à la main'); flash('Sauvegarde faite.'); }catch(e){ flash('La sauvegarde a échoué.'); } renderSauvegardes(); };
+  $('#svTelecharger').onclick = async () => { try{ await Sauvegarde.telecharger(window.__fs); }catch(e){ flash('Le téléchargement a échoué.'); } };
+  box.querySelectorAll('[data-restaurer]').forEach(b => b.onclick = async () => {
+    if(!b.dataset.confirm){ b.dataset.confirm = '1'; b.textContent = 'Sûr ? Toucher pour confirmer'; b.style.color = 'var(--red)'; setTimeout(() => { if(document.body.contains(b)){ delete b.dataset.confirm; b.textContent = 'Restaurer'; b.style.color=''; } }, 4000); return; }
+    b.disabled = true; b.textContent = 'Restauration…'; flash('Restauration en cours, ne ferme pas l’appli.');
+    try{ await Sauvegarde.restaurer(window.__fs, b.dataset.restaurer); flash('C’est restauré.'); setTimeout(() => location.reload(), 800); }
+    catch(e){ console.error(e); flash('La restauration a échoué. Rien n’a été perdu : une sauvegarde de l’état actuel a été faite juste avant.'); }
+  });
 }
 
 function renderSummary(){
@@ -625,6 +659,8 @@ $('#prev').onclick = ()=>go(-1); $('#next').onclick = ()=>go(1);
     if(!u){ loginBox(); $('#logout').hidden = true; return; }
     $('#logout').hidden = false;
     if(started) return; started = true;
+    setTimeout(() => window.Sauvegarde && Sauvegarde.auto(fs), 3000);
+    window.__fs = fs;
     fs.collection('mois').onSnapshot(snap => {
       tousMois = Object.fromEntries(snap.docs.map(d => [d.id, d.data()]));
       if(!editing()) renderSuivi();

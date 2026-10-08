@@ -304,6 +304,7 @@ details.later[open] summary{margin-bottom:10px}
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>firebase.initializeApp(window.FIREBASE_CONFIG);</script>
+<script src="sauvegarde.js"></script>
 <script>
 (async function(){
 const $ = s => document.querySelector(s);
@@ -478,6 +479,7 @@ auth.onAuthStateChanged(async u => {
     if(m.exists) moi = {uid:u.uid, cle:m.data().cle, nom:personnes[m.data().cle]};
   }catch(e){ return refuse(); }
   if(!moi) choisirNom(u);
+  setTimeout(() => window.Sauvegarde && Sauvegarde.auto(fs), 3000);
   col.onSnapshot(snap => {
     items = snap.docs.map(d => ({id:d.id, ...d.data()}));
     loaded = true;
