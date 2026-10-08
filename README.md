@@ -16,6 +16,10 @@ Le site est hébergé sur GitHub Pages. Les chiffres sont stockés dans Firebase
 
 Le site s'installe comme une appli. Sur iPhone, on l'ouvre dans Safari, on appuie sur Partager puis sur Sur l'écran d'accueil. Sur Android, Chrome propose de l'installer, sinon c'est dans le menu avec les trois points puis Installer l'application. Il s'ouvre ensuite en plein écran avec sa propre icône et garde les derniers chiffres pour s'afficher même avec peu de réseau.
 
+## Le ménage
+
+L'onglet Ménage garde la liste des tâches de la maison avec leur fréquence. Il montre ce qui est à faire maintenant, ce qui arrive dans la semaine, et quand chaque chose a été faite pour la dernière fois et par qui. Un appui sur C'est fait et la prochaine date se recalcule.
+
 ## Utilisation
 
 On se connecte avec son compte Google. La première fois, le bouton « Commencer avec nos chiffres » remplit le budget avec nos montants actuels. Ensuite tout se modifie directement sur la page et se met à jour chez l'autre en temps réel.

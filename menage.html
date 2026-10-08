@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#faf8f3">
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Budget">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<title>Ménage à deux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&display=swap">
+<style>
+html,body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+/* Mise en page : une colonne claire. En tête, le virement du mois puis le détail du calcul ligne par ligne ; ensuite les postes à modifier.
+   Choix assumé d'un seul thème clair : blanc cassé, vert sapin, touche de jaune moutarde. */
+:root{
+  --bg:#faf8f3; --card:#ffffff; --ink:#1b211e; --muted:#5f6862; --faint:#8a918c; --line:#e5e2d9;
+  --green:#1f5e4a; --green-2:#2f7a61; --green-soft:#e8f0eb;
+  --mustard:#d9a21b; --mustard-soft:#fbf1d4; --red:#b5432f;
+  --shape1:#e9f1ea; --shape2:#f8eed3;
+  --a:#1f5e4a; --b:#d9a21b;
+  --font:"Newsreader",Georgia,"Times New Roman",serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.5;padding:max(32px, calc(env(safe-area-inset-top) + 16px)) max(16px, env(safe-area-inset-right)) max(72px, calc(env(safe-area-inset-bottom) + 40px)) max(16px, env(safe-area-inset-left));-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+#bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+#bg svg{width:100%;height:100%;display:block}
+.wrap{position:relative;z-index:1;max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:32px}
+h1,h2,h3{margin:0;line-height:1.15;text-wrap:balance}
+h1{font-size:38px;font-weight:500;letter-spacing:-.01em}
+h1 .heart{color:var(--mustard);font-size:.75em;vertical-align:.1em}
+h2{font-size:23px;font-weight:500}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:14px}
+.sub{font-size:17px;font-style:italic;color:var(--muted);margin-top:4px}
+.month{display:flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px}
+.month span{font-weight:500;min-width:8.5em;text-align:center;text-transform:capitalize}
+button{font:inherit;color:inherit;cursor:pointer}
+.icon{border:0;background:transparent;border-radius:7px;width:32px;height:32px;display:grid;place-items:center;font-size:18px;color:var(--green)}
+.icon:hover{background:var(--green-soft)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
+/* carte du virement */
+.hero{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.hero-top{padding:24px 24px 20px;display:flex;flex-direction:column;gap:14px;border-bottom:1px solid var(--line)}
+.eyebrow{font-size:16px;font-style:italic;color:var(--muted)}
+.transfer{font-size:clamp(26px,5.6vw,34px);font-weight:500;line-height:1.2}
+.transfer .amt{color:var(--green);font-weight:600;white-space:nowrap;background:linear-gradient(transparent 62%,var(--mustard-soft) 62%);padding:0 2px}
+.transfer-note{font-size:16px;color:var(--muted);margin:-4px 0 0}
+.toggle{align-self:flex-start;border:1px solid var(--green);background:var(--green);color:#fff;border-radius:8px;padding:8px 16px;font-weight:500;font-size:16px}
+.toggle:hover{background:var(--green-2)}
+.toggle[aria-pressed="true"]{background:var(--green-soft);color:var(--green)}
+
+.calc{padding:20px 24px 24px;display:flex;flex-direction:column;gap:22px}
+.calc h3{font-size:19px;font-weight:500;font-style:italic;color:var(--green);margin-bottom:6px}
+.lines{display:flex;flex-direction:column}
+.line{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-variant-numeric:tabular-nums}
+.line span:last-child{font-weight:500;white-space:nowrap}
+.line .op{display:inline-block;width:1.2em;color:var(--faint);font-weight:700}
+.line.total{border-top:1px solid var(--ink);margin-top:4px;padding-top:10px;font-weight:600}
+.line.total span:last-child{font-weight:600}
+.people{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.person{border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.person .who{display:flex;align-items:center;gap:8px;font-weight:600;font-size:18px;margin-bottom:4px}
+.person .who i{width:10px;height:10px;border-radius:50%;flex:none}
+.person .line{padding:3px 0;font-size:16px}
+.person .line span:first-child{color:var(--muted)}
+.person .res{margin-top:6px;padding-top:8px;border-top:1px solid var(--line);font-size:16px;font-weight:500;font-style:italic}
+.person .res.plus{color:var(--green)} .person .res.minus{color:var(--red)}
+.bar{display:flex;height:8px;border-radius:999px;overflow:hidden;gap:3px;margin-top:4px}
+.bar i{display:block;height:100%}
+.bar i:first-child{border-radius:999px 0 0 999px}.bar i:last-child{border-radius:0 999px 999px 0}
+
+/* sections */
+section{display:flex;flex-direction:column;gap:10px}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px 12px;flex-wrap:wrap}
+.sec-title{display:flex;align-items:baseline;gap:8px 10px;flex-wrap:wrap}
+.total{font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
+.hint{font-size:16px;color:var(--muted);margin:-4px 0 0}
+.rows{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 110px 220px 76px 34px;gap:8px;align-items:center;padding:5px 10px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row input,.row select{font:inherit;font-size:max(16px,1em);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+.row input:hover,.row select:hover{border-color:var(--line)}
+.row input:focus,.row select:focus{border-color:var(--green);outline:none;background:#fcfdfc}
+.row .m{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+.row .w{color:var(--muted)}
+.kind{border:1px solid var(--line);background:var(--card);color:var(--green);border-radius:999px;padding:3px 10px;font-size:14px;font-style:italic;white-space:nowrap}
+.kind:hover{border-color:var(--green)}
+.kind.is-perso{color:var(--faint);border-style:dashed}
+.row.perso .l,.row.perso .m{color:var(--faint);text-decoration:line-through;text-decoration-color:var(--line)}
+.del{border:0;background:transparent;color:var(--faint);width:30px;height:30px;border-radius:7px;font-size:18px;line-height:1}
+.del:hover{background:#f6e6e2;color:var(--red)}
+.empty{padding:14px 12px;color:var(--muted);font-size:16px;font-style:italic}
+.add{align-self:flex-start;border:1px dashed var(--green);background:transparent;color:var(--green);border-radius:8px;padding:5px 14px;font-size:16px;font-weight:500}
+.add:hover{background:var(--green-soft);border-style:solid}
+.names{display:flex;gap:10px 16px;flex-wrap:wrap}
+.names label{display:flex;flex-direction:column;gap:6px;font-size:15px;font-style:italic;color:var(--muted);flex:1 1 200px}
+.names input{font:inherit;font-style:normal;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 12px}
+.names input:focus{border-color:var(--green);outline:none}
+.status{font-size:15px;font-style:italic;color:var(--muted);min-height:1.2em}
+.notice{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.primary{background:var(--green);color:#fff;border:0;border-radius:8px;padding:9px 16px;font-weight:700}
+.tag{display:inline-block;font-size:15px;font-style:italic;color:var(--faint)}
+.tag-mod{color:#9a6f05}
+.tpl{display:flex;flex-wrap:wrap;gap:6px 18px}
+.link{border:0;background:none;padding:2px 0;color:var(--green);font-size:16px;text-decoration:underline;text-underline-offset:4px}
+fieldset{border:0;margin:0;padding:0;min-width:0}
+fieldset:disabled .add,fieldset:disabled .del{display:none}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:10;width:100%;height:100%}
+@media (max-width:560px){
+  h1{font-size:28px}
+  .hero-top,.calc{padding-left:18px;padding-right:18px}
+  .row{grid-template-columns:minmax(0,1fr) 104px 30px;grid-template-areas:"l m d" "w k d"}
+  .row .kind,.row .kind-gap{grid-area:k;justify-self:end}
+  .row .l{grid-area:l}.row .m{grid-area:m}.row .w{grid-area:w}.row .del{grid-area:d}
+  .row .w{font-size:16px}
+}
+@media (prefers-reduced-motion:no-preference){ .bar i{transition:width .4s ease} }
+.tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px;align-self:flex-start}
+.tabs a{padding:6px 16px;border-radius:7px;color:var(--muted);text-decoration:none;font-size:16px}
+.tabs a:hover{color:var(--ink)}
+.tabs a[aria-current="page"]{background:var(--green);color:#fff}
+
+/* ménage */
+.groups{display:flex;flex-direction:column;gap:28px}
+.group h2{margin-bottom:10px}
+.group h2 small{font-size:16px;font-style:italic;color:var(--faint);font-weight:400;margin-left:6px}
+.tasks{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px}
+.task{display:flex;align-items:center;gap:12px;padding:12px 14px;border-top:1px solid var(--line)}
+.task:first-child{border-top:0}
+.task .txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.task .name{font-size:18px;font-weight:500}
+.task .meta{font-size:15px;color:var(--muted);font-style:italic}
+.task .meta .late{color:var(--red);font-style:normal;font-weight:500}
+.task .meta .today{color:#9a6f05;font-style:normal;font-weight:500}
+.done-btn{border:1px solid var(--green);background:var(--card);color:var(--green);border-radius:999px;padding:7px 16px;font-size:16px;white-space:nowrap}
+.done-btn:hover{background:var(--green);color:#fff}
+.task.just .done-btn{background:var(--green-soft);border-color:var(--green-soft)}
+.empty-good{padding:16px 14px;color:var(--muted);font-style:italic}
+details.later summary{cursor:pointer;color:var(--green);font-size:17px;list-style:none;padding:4px 0}
+details.later summary::-webkit-details-marker{display:none}
+details.later[open] summary{margin-bottom:10px}
+.toast{position:fixed;left:50%;bottom:max(20px, calc(env(safe-area-inset-bottom) + 12px));transform:translateX(-50%);background:var(--ink);color:#fff;border-radius:999px;padding:10px 12px 10px 18px;display:flex;align-items:center;gap:12px;font-size:16px;box-shadow:0 8px 24px -10px rgba(0,0,0,.4);z-index:5;max-width:calc(100% - 32px)}
+.toast button{border:0;background:transparent;color:var(--mustard);font:inherit;text-decoration:underline;padding:2px 6px}
+.edit-row{display:grid;grid-template-columns:minmax(0,1fr) 150px 170px 34px;gap:8px;align-items:center;padding:6px 10px;border-top:1px solid var(--line)}
+.edit-row:first-child{border-top:0}
+.edit-row input,.edit-row select{font:inherit;font-size:max(16px,1em);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:7px;padding:7px 9px;width:100%;min-width:0}
+.edit-row input:hover,.edit-row select:hover{border-color:var(--line)}
+.edit-row input:focus,.edit-row select:focus{border-color:var(--green);outline:none}
+.edit-row .freq{display:flex;align-items:center;gap:4px;color:var(--muted)}
+.edit-row .freq input{width:60px;text-align:right}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+@media (max-width:560px){
+  .edit-row{grid-template-columns:minmax(0,1fr) 30px;grid-template-areas:"n d" "f d" "p d"}
+  .edit-row .n{grid-area:n}.edit-row .freq{grid-area:f}.edit-row .p{grid-area:p}.edit-row .del{grid-area:d}
+  .task{padding:12px}
+  .task .name{font-size:17px}
+}
+</style>
+</head>
+<body>
+<div id="bg" aria-hidden="true">
+<svg viewBox="0 0 1200 900" preserveAspectRatio="xMidYMid slice">
+  <path d="M-80 -60 C 120 -70 290 10 280 150 C 270 260 150 300 70 340 C 0 380 -80 350 -100 270 Z" fill="var(--shape1)"/>
+  <circle cx="1110" cy="120" r="130" fill="var(--shape2)"/>
+  <path d="M1280 640 C 1170 610 1040 650 1010 750 C 980 850 1070 940 1180 955 C 1260 965 1300 890 1295 800 Z" fill="var(--shape1)"/>
+</svg>
+</div>
+<div class="wrap">
+  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html" aria-current="page">Ménage</a></nav>
+  <header>
+    <div>
+      <h1>Le ménage</h1>
+      <div class="sub">Ce qui est à faire, sans attendre que ce soit sale</div>
+    </div>
+  </header>
+  <div id="app"><div class="notice"><p class="muted" style="margin:0">Chargement</p></div></div>
+  <div class="status" id="status" aria-live="polite"></div>
+  <button class="link" id="logout" hidden style="align-self:flex-start">Se déconnecter</button>
+</div>
+<div class="toast" id="toast" hidden><span id="toastMsg"></span><button id="undo">Annuler</button></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>firebase.initializeApp(window.FIREBASE_CONFIG);</script>
+<script>
+(async function(){
+const $ = s => document.querySelector(s);
+const app = $('#app');
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const flash = m => { $('#status').textContent = m; };
+const DAY = 86400000;
+const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+const isoDay = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const parseDay = s => { if(!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+
+// Liste de départ, modifiable ensuite
+const DEPART = [
+  ['Passer l’aspirateur','Partout',7], ['Laver les sols','Partout',14], ['Faire la poussière','Partout',14],
+  ['Lavabo, douche et miroir','Salle de bain',7], ['Toilettes','Salle de bain',7], ['Changer les serviettes','Salle de bain',7],
+  ['Plaques de cuisson et plan de travail','Cuisine',7], ['Micro-ondes','Cuisine',14], ['Vider et nettoyer le frigo','Cuisine',30],
+  ['Four','Cuisine',60], ['Filtre de la hotte','Cuisine',90], ['Sortir le tri','Cuisine',7],
+  ['Changer les draps','Chambre',14], ['Joint et filtre du lave-linge','Buanderie',60], ['Vitres','Partout',60]
+];
+
+const auth = firebase.auth(), fs = firebase.firestore();
+try { await fs.enablePersistence({synchronizeTabs:true}); } catch(e) {}
+auth.getRedirectResult().catch(()=>{});
+const col = fs.collection('menage');
+
+let tasks = [], loaded = false, editing = false, me = '';
+
+function freqLabel(n){
+  if(n % 7 === 0){ const w = n/7; return w===1 ? 'chaque semaine' : `toutes les ${w} semaines`; }
+  if(n === 1) return 'chaque jour';
+  if(n % 30 === 0){ const m = n/30; return m===1 ? 'chaque mois' : `tous les ${m} mois`; }
+  return `tous les ${n} jours`;
+}
+function status(t){
+  const last = parseDay(t.dernier);
+  if(!last) return {due:0, text:'<span class="today">jamais fait</span>'};
+  const next = new Date(last.getTime() + t.jours*DAY);
+  const due = Math.round((next - today())/DAY);
+  let when;
+  if(due < 0) when = `<span class="late">en retard de ${-due} jour${-due>1?'s':''}</span>`;
+  else if(due === 0) when = '<span class="today">aujourd’hui</span>';
+  else if(due === 1) when = 'demain';
+  else when = `dans ${due} jours`;
+  const ago = Math.round((today() - last)/DAY);
+  const fait = ago === 0 ? 'fait aujourd’hui' : ago === 1 ? 'fait hier' : `fait il y a ${ago} jours`;
+  return {due, text: `${when} · ${fait}${t.par?' par '+esc(t.par):''}`};
+}
+
+function taskHtml(t){
+  const s = status(t);
+  return `<div class="task" data-id="${t.id}">
+    <div class="txt"><span class="name">${esc(t.nom)}</span>
+    <span class="meta">${esc(t.piece||'')}${t.piece?' · ':''}${s.text}</span></div>
+    <button class="done-btn" data-done="${t.id}">C’est fait</button></div>`;
+}
+
+function render(){
+  if(!loaded) return;
+  if(!tasks.length){
+    app.innerHTML = `<div class="notice"><h2>Pas encore de tâches</h2>
+      <p class="muted" style="margin:0">Je peux mettre une liste de départ avec les tâches les plus courantes. Vous l’ajusterez ensuite.</p>
+      <button class="primary" id="seed">Mettre la liste de départ</button></div>`;
+    $('#seed').onclick = seed; return;
+  }
+  if(editing) return renderEdit();
+  const withS = tasks.map(t => ({t, s: status(t)})).sort((a,b) => a.s.due - b.s.due || a.t.nom.localeCompare(b.t.nom));
+  const now = withS.filter(x => x.s.due <= 0), soon = withS.filter(x => x.s.due > 0 && x.s.due <= 7), later = withS.filter(x => x.s.due > 7);
+  const list = arr => `<div class="tasks">${arr.map(x=>taskHtml(x.t)).join('')}</div>`;
+  app.innerHTML = `<div class="groups">
+    <section class="group"><h2>À faire maintenant${now.length?` <small>${now.length}</small>`:''}</h2>
+      ${now.length ? list(now) : '<div class="tasks"><div class="empty-good">Tout est à jour. Profitez-en.</div></div>'}</section>
+    ${soon.length ? `<section class="group"><h2>Cette semaine</h2>${list(soon)}</section>` : ''}
+    ${later.length ? `<details class="later group"><summary>Plus tard (${later.length})</summary>${list(later)}</details>` : ''}
+    <div class="toolbar"><button class="add" id="edit">Modifier la liste</button></div>
+  </div>`;
+  $('#edit').onclick = () => { editing = true; render(); };
+}
+
+function renderEdit(){
+  const opts = [[1,'jours'],[7,'semaines'],[30,'mois']];
+  const unitOf = n => n % 30 === 0 ? 30 : n % 7 === 0 ? 7 : 1;
+  app.innerHTML = `<section class="group">
+    <div class="sec-head"><h2>Modifier la liste</h2></div>
+    <p class="hint" style="margin:0 0 10px">Tout s’enregistre au fur et à mesure.</p>
+    <div class="tasks">${tasks.map(t => { const u = unitOf(t.jours); return `<div class="edit-row" data-id="${t.id}">
+      <input class="n" data-f="nom" value="${esc(t.nom)}" aria-label="Tâche">
+      <span class="freq">tous les <input data-f="n" inputmode="numeric" value="${t.jours/u}" aria-label="Nombre"><select data-f="u" aria-label="Unité">${opts.map(([v,l])=>`<option value="${v}"${v===u?' selected':''}>${l}</option>`).join('')}</select></span>
+      <input class="p" data-f="piece" value="${esc(t.piece||'')}" placeholder="Pièce" aria-label="Pièce">
+      <button class="del" data-del="${t.id}" aria-label="Supprimer ${esc(t.nom)}">×</button></div>`; }).join('')}</div>
+    <div class="toolbar" style="margin-top:12px"><button class="add" id="addTask">Ajouter une tâche</button><button class="link" id="back">Terminé</button></div>
+  </section>`;
+  $('#back').onclick = () => { editing = false; render(); };
+  $('#addTask').onclick = async () => { await col.add({nom:'Nouvelle tâche', piece:'', jours:7, dernier:null, par:''}); };
+}
+
+const timers = {};
+app.addEventListener('input', e => {
+  const row = e.target.closest('.edit-row'); if(!row) return;
+  const id = row.dataset.id;
+  clearTimeout(timers[id]);
+  timers[id] = setTimeout(() => {
+    const n = Math.max(1, parseInt(row.querySelector('[data-f="n"]').value,10) || 1);
+    const u = parseInt(row.querySelector('[data-f="u"]').value,10);
+    col.doc(id).update({ nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom', piece: row.querySelector('[data-f="piece"]').value.trim(), jours: n*u })
+      .then(()=>flash('Enregistré')).catch(()=>flash("L'enregistrement a échoué."));
+  }, 600);
+});
+app.addEventListener('change', e => { if(e.target.matches('select')) e.target.dispatchEvent(new Event('input',{bubbles:true})); });
+
+let undoData = null, toastTimer = null;
+app.addEventListener('click', async e => {
+  const d = e.target.closest('[data-done]');
+  if(d){
+    const t = tasks.find(x => x.id === d.dataset.done); if(!t) return;
+    undoData = {id:t.id, dernier:t.dernier||null, par:t.par||''};
+    await col.doc(t.id).update({dernier: isoDay(today()), par: me});
+    $('#toastMsg').textContent = `${t.nom} : c’est noté`;
+    $('#toast').hidden = false; clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { $('#toast').hidden = true; undoData = null; }, 5000);
+    return;
+  }
+  const del = e.target.closest('[data-del]');
+  if(del){
+    const row = del.closest('.edit-row');
+    if(del.dataset.confirm){ await col.doc(del.dataset.del).delete(); return; }
+    del.dataset.confirm = '1'; del.textContent = 'Sûr ?'; del.style.width = 'auto'; del.style.color = 'var(--red)';
+    setTimeout(()=>{ if(document.body.contains(del)){ delete del.dataset.confirm; del.textContent='×'; del.style.width=''; del.style.color=''; } }, 3000);
+  }
+});
+$('#undo').onclick = async () => {
+  if(!undoData) return;
+  await col.doc(undoData.id).update({dernier: undoData.dernier, par: undoData.par});
+  undoData = null; $('#toast').hidden = true;
+};
+
+async function seed(){
+  const b = fs.batch();
+  DEPART.forEach(([nom,piece,jours]) => b.set(col.doc(), {nom, piece, jours, dernier:null, par:''}));
+  await b.commit();
+}
+
+function loginBox(){
+  app.innerHTML = `<div class="notice"><h2>Connexion</h2>
+    <p class="muted" style="margin:0">Connecte toi avec ton compte Google.</p>
+    <button class="primary" id="login">Se connecter avec Google</button></div>`;
+  $('#login').onclick = () => {
+    const p = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(p).catch(err => {
+      if(err && (err.code==='auth/popup-blocked' || err.code==='auth/operation-not-supported-in-this-environment')) return auth.signInWithRedirect(p);
+      if(err && err.code==='auth/popup-closed-by-user') return;
+      flash("La connexion n'a pas marché, réessaie.");
+    });
+  };
+}
+
+let started = false;
+auth.onAuthStateChanged(u => {
+  if(!u){ loginBox(); $('#logout').hidden = true; return; }
+  $('#logout').hidden = false;
+  me = (u.displayName || u.email || '').split(' ')[0];
+  if(started) return; started = true;
+  col.onSnapshot(snap => {
+    tasks = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    loaded = true;
+    const a = document.activeElement;
+    if(editing && a && a.closest && a.closest('.edit-row') && snap.docs.length === app.querySelectorAll('.edit-row').length) return;
+    render();
+  }, () => {
+    app.innerHTML = `<div class="notice"><h2>Accès refusé</h2><p class="muted" style="margin:0">Ce compte Google n'a pas accès. Connecte toi avec le bon compte.</p><button class="primary" id="out2">Changer de compte</button></div>`;
+    $('#out2').onclick = () => auth.signOut().then(()=>location.reload());
+  });
+});
+$('#logout').onclick = () => auth.signOut().then(()=>location.reload());
+// Les « en retard » se mettent à jour quand on revient sur l'appli un autre jour
+document.addEventListener('visibilitychange', () => { if(!document.hidden && !editing) render(); });
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body>
+</html>

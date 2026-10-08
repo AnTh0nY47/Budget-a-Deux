@@ -1,7 +1,7 @@
 // Garde une copie de l'appli pour qu'elle s'ouvre vite, même avec peu de réseau.
 // Les données du budget, elles, passent toujours par Firebase.
-const CACHE = 'budget-v1';
-const FICHIERS = ['./', './index.html', './firebase-config.js', './manifest.webmanifest',
+const CACHE = 'budget-v2';
+const FICHIERS = ['./', './index.html', './menage.html', './firebase-config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
