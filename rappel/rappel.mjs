@@ -10,8 +10,11 @@ admin.initializeApp({ credential: admin.credential.cert(JSON.parse(cle)) });
 const db = admin.firestore();
 
 const aujourdhui = new Date(); aujourdhui.setHours(0, 0, 0, 0); // TZ=Europe/Paris dans la tâche
-const taches = (await db.collection('menage').get()).docs.map(d => d.data());
-const aFaire = taches.filter(t => P.dans(t, aujourdhui) <= 0).sort((a, b) => P.dans(a, aujourdhui) - P.dans(b, aujourdhui));
+const docs = (await db.collection('menage').get()).docs;
+const tous = Object.fromEntries(docs.map(d => [d.id, d.data()]));
+const taches = Object.values(tous);
+const dans = t => P.dans(t, aujourdhui, tous);
+const aFaire = taches.filter(t => dans(t) <= 0).sort((a, b) => dans(a) - dans(b));
 if (!aFaire.length) { console.log('Rien à faire ce soir, aucun rappel.'); process.exit(0); }
 
 const noms = aFaire.map(t => t.nom);

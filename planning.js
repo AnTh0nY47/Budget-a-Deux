@@ -11,9 +11,16 @@
   function plus(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
   function joursPrecis(t) { return Array.isArray(t.joursSemaine) && t.joursSemaine.length ? t.joursSemaine : null; }
 
-  // Prochaine date où la tâche est à faire
-  function prochaine(t, aujourdhui) {
+  // Prochaine date où la tâche est à faire (tous : les tâches par id, pour les tâches liées)
+  function prochaine(t, aujourdhui, tous) {
     const dernier = lireJour(t.dernier);
+    if (t.apres) {
+      const parent = tous && tous[t.apres];
+      const fait = parent && lireJour(parent.dernier);
+      if (!fait) return null;                       // la tâche d'avant n'a pas encore été faite
+      if (dernier && dernier >= fait) return null;  // déjà fait depuis
+      return plus(fait, t.delai || 0);
+    }
     const js = joursPrecis(t);
     if (js) {
       let d = dernier ? plus(dernier, 1) : aujourdhui;
@@ -25,12 +32,18 @@
   }
 
   // Nombre de jours avant l'échéance (négatif si en retard)
-  function dans(t, aujourdhui) {
-    const p = prochaine(t, aujourdhui);
+  function dans(t, aujourdhui, tous) {
+    const p = prochaine(t, aujourdhui, tous);
     return p ? Math.round((p - aujourdhui) / JOUR) : 999;
   }
 
-  function frequence(t) {
+  function frequence(t, tous) {
+    if (t.apres) {
+      const parent = tous && tous[t.apres];
+      const nom = parent ? `« ${parent.nom} »` : 'une tâche supprimée';
+      const d = t.delai || 0;
+      return `après ${nom}` + (d === 0 ? '' : d === 1 ? ', le lendemain' : `, ${d} jours plus tard`);
+    }
     const js = joursPrecis(t);
     if (js) {
       const ordre = [1, 2, 3, 4, 5, 6, 0].filter(j => js.includes(j)).map(j => 'le ' + NOMS_JOURS[j]);
