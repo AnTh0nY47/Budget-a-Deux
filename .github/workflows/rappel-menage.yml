@@ -2,13 +2,16 @@ name: Rappel du ménage
 
 on:
   schedule:
-    # Tous les soirs vers 18h30, heure de Paris (16h30 UTC, donc 17h30 en hiver)
-    - cron: '30 16 * * *'
+    # Tous les soirs à 18h, heure de Paris. Deux lancements (heure d'été, heure d'hiver),
+    # le script garde le bon, attend 18h00 et n'envoie qu'une fois par jour.
+    - cron: '40 15 * * *'
+    - cron: '40 16 * * *'
   workflow_dispatch:
 
 jobs:
   rappel:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     defaults:
       run:
         working-directory: rappel

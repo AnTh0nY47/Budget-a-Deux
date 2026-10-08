@@ -20,7 +20,7 @@ Le site s'installe comme une appli. Sur iPhone, on l'ouvre dans Safari, on appui
 
 L'onglet Ménage garde la liste des tâches de la maison avec leur fréquence. Il montre ce qui est à faire maintenant, ce qui arrive dans la semaine, et quand chaque chose a été faite pour la dernière fois et par qui. Un appui sur C'est fait et la prochaine date se recalcule. Chaque tâche peut revenir tous les X jours, semaines ou mois, ou certains jours précis de la semaine, pratique pour les poubelles.
 
-Chaque soir vers 18h30, une tâche GitHub regarde ce qui est à faire et envoie une notification sur les téléphones qui l'ont activée. Le script est dans le dossier rappel. Il a besoin du secret FIREBASE_SERVICE_ACCOUNT dans les réglages du dépôt, et la clé Web Push du projet doit être mise dans firebase-config.js.
+Chaque soir à 18h, une tâche GitHub regarde ce qui est à faire et envoie une notification sur les téléphones qui l'ont activée. Le script est dans le dossier rappel. Il a besoin du secret FIREBASE_SERVICE_ACCOUNT dans les réglages du dépôt, et la clé Web Push du projet doit être mise dans firebase-config.js.
 
 ## Utilisation
 

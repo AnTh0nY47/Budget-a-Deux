@@ -9,7 +9,19 @@ if (!cle) { console.error('Secret FIREBASE_SERVICE_ACCOUNT manquant'); process.e
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(cle)) });
 const db = admin.firestore();
 
-const aujourdhui = new Date(); aujourdhui.setHours(0, 0, 0, 0); // TZ=Europe/Paris dans la tâche
+// Heure de Paris (TZ=Europe/Paris dans la tâche). GitHub lance la tâche deux fois vers 17h45,
+// une pour l'heure d'été et une pour l'heure d'hiver : on n'envoie qu'entre 17h30 et 20h, une seule fois par jour.
+const manuel = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch';
+const maintenant = new Date();
+const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
+if (!manuel && (minutes < 17 * 60 + 30 || minutes > 20 * 60)) { console.log('Pas la bonne heure, rien à faire.'); process.exit(0); }
+const aujourdhui = new Date(); aujourdhui.setHours(0, 0, 0, 0);
+const jourIso = `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}-${String(aujourdhui.getDate()).padStart(2, '0')}`;
+const reglage = db.doc('reglages/rappel');
+if (!manuel && ((await reglage.get()).data() || {}).dernierEnvoi === jourIso) { console.log('Rappel déjà envoyé aujourd\'hui.'); process.exit(0); }
+// On attend 18h00 pile si on est en avance
+const attente = new Date(aujourdhui); attente.setHours(18, 0, 0, 0);
+if (!manuel && attente - Date.now() > 0) { console.log('Attente de 18h00.'); await new Promise(r => setTimeout(r, attente - Date.now())); }
 const docs = (await db.collection('menage').get()).docs;
 const tous = Object.fromEntries(docs.map(d => [d.id, d.data()]));
 const taches = Object.values(tous);
@@ -38,4 +50,5 @@ await Promise.all(rep.responses.map((r, i) => {
   const code = r.error && r.error.code;
   if (code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token') { retires++; return db.collection('appareils').doc(jetons[i]).delete(); }
 }));
+if (!manuel) await reglage.set({ dernierEnvoi: jourIso }, { merge: true });
 console.log(`Rappel envoyé : ${rep.successCount} réussi(s), ${rep.failureCount} échec(s), ${retires} téléphone(s) retiré(s).`);
