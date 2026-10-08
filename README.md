@@ -1,6 +1,6 @@
 # Chez nous
 
-Petite appli pour la maison, à deux. Côté budget, elle partage les charges au prorata de nos salaires. Chaque mois il reprend nos charges habituelles, on peut les modifier si quelque chose change, et il calcule tout seul le virement à faire pour être quittes.
+Petite appli pour la maison, à deux. Côté budget, elle partage les charges au prorata de nos salaires. Chaque mois elle reprend nos charges habituelles, on peut les modifier si quelque chose change, et elle calcule toute seule le virement à faire pour être quittes.
 
 Le site est hébergé sur GitHub Pages. Les chiffres sont stockés dans Firebase et seuls nos deux comptes Google peuvent les lire ou les modifier.
 
