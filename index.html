@@ -138,6 +138,32 @@ fieldset:disabled .add,fieldset:disabled .del{display:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs a{white-space:nowrap}
 @media (max-width:420px){.tabs a{padding:6px 11px;font-size:15px}}
+
+/* suivi */
+.suivi{display:flex;flex-direction:column;gap:10px;margin-top:28px}
+.legende{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:15px;color:var(--muted)}
+.legende i,.tip i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.chart{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 8px 4px}
+.chart svg{display:block;width:100%;height:auto;max-width:100%}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .ax{fill:var(--muted);font-size:12px;font-family:var(--font)}
+.chart .ax.now{fill:var(--ink)}
+.chart .hit{cursor:pointer;outline:none}
+.chart .hit.on,.chart .hit:focus-visible{fill:rgba(31,94,74,.06)}
+.tip{position:absolute;top:0;z-index:2;background:var(--ink);color:#fff;border-radius:10px;padding:10px 12px;font-size:14px;min-width:200px;pointer-events:none;box-shadow:0 8px 20px -10px rgba(0,0,0,.4)}
+.tip b{display:block;margin-bottom:4px;text-transform:capitalize}
+.tip div{display:flex;align-items:center;gap:0;justify-content:flex-start}
+.tip div span{margin-left:auto;padding-left:14px;font-variant-numeric:tabular-nums}
+.tip .t{border-top:1px solid rgba(255,255,255,.25);margin-top:4px;padding-top:4px;font-weight:600}
+.tab-wrap{overflow-x:auto}
+.tab-wrap table{width:100%;border-collapse:collapse;font-size:15px;font-variant-numeric:tabular-nums}
+.tab-wrap th,.tab-wrap td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.tab-wrap th:first-child,.tab-wrap td:first-child{text-align:left;text-transform:capitalize}
+.tab-wrap th{font-weight:500;color:var(--muted)}
+.bloc{border-top:1px solid var(--line);padding-top:12px}
+.bloc summary{display:flex;justify-content:space-between;cursor:pointer;list-style:none;font-size:17px;color:var(--green)}
+.bloc summary::-webkit-details-marker{display:none}
+.bloc[open] summary{margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -286,6 +312,7 @@ function renderAll(){
   const N = names();
   app.innerHTML = `
   <div class="hero" id="hero"></div>
+  <section class="suivi" id="suivi"></section>
   <fieldset id="edit" ${canWrite?'':'disabled'} style="display:flex;flex-direction:column;gap:28px;margin-top:28px">
     <section ${secStyle('depenses')}>
       ${head('depenses','Dépenses du mois','','t-dep')}
@@ -305,6 +332,7 @@ function renderAll(){
     </section>
   </fieldset>`;
   renderSummary();
+  renderSuivi();
 }
 
 function renderSummary(){
@@ -367,6 +395,82 @@ function renderSummary(){
   set('#t-dep', c.enCours.total); set('#t-ch', c.fixe); set('#t-ai', c.aides); set('#t-rev', c.Ra+c.Rb);
 }
 
+
+/* ---------- le suivi des mois ---------- */
+let tousMois = {};   // mois/AAAA-MM -> document
+const COUL = {charges:'#00875a', courses:'#b8860b', autres:'#5b6fc4'};
+const LIB = {charges:'Charges, aides déduites', courses:'Courses', autres:'Autres dépenses'};
+function chiffresMois(cle){
+  const m = tousMois[cle] || {};
+  const effM = k => Array.isArray(m[k]) ? m[k] : (main?.[k] || []);
+  const D = commun(m.depenses);
+  const courses = sum(D, x => /course/i.test(x.label||''));
+  return {cle, charges: Math.max(0, sum(commun(effM('charges'))) - sum(effM('aides'))), courses, autres: sum(D) - courses};
+}
+function renderSuivi(){
+  const box = $('#suivi'); if(!box || !main) return;
+  const maintenant = new Date(); const fin = new Date(maintenant.getFullYear(), maintenant.getMonth(), 1);
+  const cles = Object.keys(tousMois).sort();
+  let debut = cles.length ? new Date(+cles[0].slice(0,4), +cles[0].slice(5,7)-1, 1) : fin;
+  const six = new Date(fin.getFullYear(), fin.getMonth()-5, 1); if(debut < six) debut = six;
+  const mois = [];
+  for(let d = new Date(debut); d <= fin; d = new Date(d.getFullYear(), d.getMonth()+1, 1)) mois.push(chiffresMois(monthKey(d)));
+  const court = c => new Date(+c.slice(0,4), +c.slice(5,7)-1, 1).toLocaleDateString('fr-FR',{month:'short'}).replace('.','');
+  const long = c => new Date(+c.slice(0,4), +c.slice(5,7)-1, 1).toLocaleDateString('fr-FR',{month:'long', year:'numeric'});
+  const tot = x => x.charges + x.courses + x.autres;
+  const max = Math.max(1, ...mois.map(tot));
+  const pas = max > 1500 ? 500 : max > 600 ? 200 : 100, haut = Math.ceil(max/pas)*pas;
+  const W = Math.round(Math.max(280, Math.min(700, (box.clientWidth || 360) - 18))), H = 210, g = 40, bas = 24, zone = H - bas - 8;
+  const larg = Math.min(64, (W - g - 10) / mois.length * 0.56), ecart = (W - g - 10) / mois.length;
+  const y = v => 8 + zone - v/haut*zone;
+  let svg = '';
+  for(let v = 0; v <= haut; v += pas) svg += `<line x1="${g}" x2="${W-4}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${g-8}" y="${y(v)+4}" class="ax" text-anchor="end">${v.toLocaleString('fr-FR')}</text>`;
+  mois.forEach((x, i) => {
+    const cx = g + ecart*i + ecart/2, x0 = cx - larg/2;
+    let base = 0; const segs = ['charges','courses','autres'].filter(k => x[k] > 0);
+    segs.forEach((k, j) => {
+      const h = x[k]/haut*zone, top = y(base + x[k]), gap = j < segs.length-1 ? 2 : 0;
+      const dernier = j === segs.length-1, r = dernier ? Math.min(4, h) : 0;
+      const hh = Math.max(0, h - (j > 0 ? 2 : 0));
+      svg += dernier
+        ? `<path d="M${x0},${top+hh} V${top+r} Q${x0},${top} ${x0+r},${top} H${x0+larg-r} Q${x0+larg},${top} ${x0+larg},${top+r} V${top+hh} Z" fill="${COUL[k]}"/>`
+        : `<rect x="${x0}" y="${top}" width="${larg}" height="${hh}" fill="${COUL[k]}"/>`;
+      base += x[k];
+    });
+    svg += `<text x="${cx}" y="${H-6}" class="ax${i===mois.length-1?' now':''}" text-anchor="middle">${court(x.cle)}</text>`;
+    svg += `<rect x="${cx-ecart/2}" y="0" width="${ecart}" height="${H-bas}" fill="transparent" class="hit" data-i="${i}" tabindex="0" aria-label="${long(x.cle)} : ${eur(tot(x))}"/>`;
+  });
+  const cur_ = mois[mois.length-1], av = mois[mois.length-2];
+  let phrase = `Ce mois-ci, ${eur(cur_.courses)} de courses pour l’instant.`;
+  if(av && av.courses > 0){ phrase += ` Le mois dernier : ${eur(av.courses)}.`; }
+  const moy = mois.length > 1 ? mois.slice(0,-1).reduce((s,x)=>s+x.courses,0)/(mois.length-1) : 0;
+  if(mois.length > 2 && moy > 0) phrase += ` En moyenne ${eur(moy)} par mois.`;
+  box.innerHTML = `
+    <div class="sec-head"><h2>Le suivi</h2></div>
+    <p class="hint">${phrase}</p>
+    <div class="legende">${['charges','courses','autres'].map(k=>`<span><i style="background:${COUL[k]}"></i>${LIB[k]}</span>`).join('')}</div>
+    <div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Dépenses communes par mois">${svg}</svg><div class="tip" id="tip" hidden></div></div>
+    <details class="bloc"><summary><span>Voir en tableau</span></summary>
+      <div class="tab-wrap"><table><thead><tr><th>Mois</th><th>Charges</th><th>Courses</th><th>Autres</th><th>Total</th></tr></thead>
+      <tbody>${mois.slice().reverse().map(x=>`<tr><td>${long(x.cle)}</td><td>${eur(x.charges)}</td><td>${eur(x.courses)}</td><td>${eur(x.autres)}</td><td><b>${eur(tot(x))}</b></td></tr>`).join('')}</tbody></table></div>
+    </details>`;
+  const tip = $('#tip'), chart = box.querySelector('.chart');
+  const montrer = el => {
+    const x = mois[+el.dataset.i];
+    tip.innerHTML = `<b>${long(x.cle)}</b>${['charges','courses','autres'].map(k=>`<div><i style="background:${COUL[k]}"></i>${LIB[k]}<span>${eur(x[k])}</span></div>`).join('')}<div class="t"><span>Total</span><span>${eur(tot(x))}</span></div>`;
+    tip.hidden = false;
+    const r = el.getBoundingClientRect(), c = chart.getBoundingClientRect();
+    let left = r.left - c.left + r.width/2 - tip.offsetWidth/2;
+    left = Math.max(0, Math.min(left, c.width - tip.offsetWidth));
+    tip.style.left = left + 'px'; tip.style.top = '0px';
+    box.querySelectorAll('.hit').forEach(h => h.classList.toggle('on', h === el));
+  };
+  box.querySelectorAll('.hit').forEach(h => { h.addEventListener('mouseenter', () => montrer(h)); h.addEventListener('focus', () => montrer(h)); h.addEventListener('click', () => montrer(h)); });
+  chart.addEventListener('mouseleave', () => { tip.hidden = true; });
+}
+
+let largeurSuivi = 0;
+window.addEventListener('resize', () => { const b = document.querySelector('#suivi'); if(b && Math.abs(b.clientWidth - largeurSuivi) > 20){ largeurSuivi = b.clientWidth; renderSuivi(); } });
 /* ---------- petite fête quand le virement est fait ---------- */
 function confetti(){
   if(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -521,6 +625,10 @@ $('#prev').onclick = ()=>go(-1); $('#next').onclick = ()=>go(1);
     if(!u){ loginBox(); $('#logout').hidden = true; return; }
     $('#logout').hidden = false;
     if(started) return; started = true;
+    fs.collection('mois').onSnapshot(snap => {
+      tousMois = Object.fromEntries(snap.docs.map(d => [d.id, d.data()]));
+      if(!editing()) renderSuivi();
+    }, () => {});
     db.doc('budget/main').onSnapshot(s=>{
       if(s.metadata.hasPendingWrites) return;
       if(!s.exists){ if(mainExists!==true){ mainExists=false; renderAll(); } return; }

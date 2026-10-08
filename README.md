@@ -12,6 +12,10 @@ Le site est hébergé sur GitHub Pages. Les chiffres sont stockés dans Firebase
 4. Dans les paramètres du projet, ajouter une application Web et recopier sa configuration dans firebase-config.js.
 5. Sur GitHub, dans Settings puis Pages, choisir la branche main comme source.
 
+## Le suivi
+
+En bas du virement, un graphique montre mois par mois ce qui part dans les charges (aides déduites), dans les courses et dans les autres dépenses communes, sur les six derniers mois. On touche une barre pour voir le détail, et le même détail existe en tableau.
+
 ## Sur le téléphone
 
 Le site s'installe comme une appli. Sur iPhone, on l'ouvre dans Safari, on appuie sur Partager puis sur Sur l'écran d'accueil. Sur Android, Chrome propose de l'installer, sinon c'est dans le menu avec les trois points puis Installer l'application. Il s'ouvre ensuite en plein écran avec sa propre icône et garde les derniers chiffres pour s'afficher même avec peu de réseau.
