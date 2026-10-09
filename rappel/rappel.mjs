@@ -34,7 +34,8 @@ const taches = Object.values(tous);
 const dans = t => P.dans(t, aujourdhui, tous);
 const jamais = t => !t.dernier && !t.apres && !(Array.isArray(t.joursSemaine) && t.joursSemaine.length);
 const aFaire = taches.filter(t => !jamais(t) && dans(t) <= 0).sort((a, b) => dans(a) - dans(b));
-if (aFaire.length) {
+const vac = (await db.doc('reglages/vacances').get()).data() || {};
+if (aFaire.length && !vac.actif) {
   const noms = aFaire.map(t => t.nom);
   messages.push({
     tag: 'menage', url: './menage.html',
@@ -57,7 +58,7 @@ if (manuel || (jourDuMois - 1) % 3 === 0) {
       const nomMois = aujourdhui.toLocaleDateString('fr-FR', { month: 'long' });
       const euros = (Math.round(v.montant * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
       messages.push({
-        tag: 'virement', url: './',
+        tag: 'virement', url: './budget.html',
         title: `Le virement ${/^[aeiouy]/.test(nomMois) ? 'd’' : 'de '}${nomMois}`,
         body: `${noms[v.de]} vire ${euros} à ${noms[v.vers]}. Pensez à le cocher une fois fait.`
       });

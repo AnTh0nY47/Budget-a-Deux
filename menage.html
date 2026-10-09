@@ -248,7 +248,7 @@ details.later[open] summary{margin-bottom:10px}
 .tabs{max-width:100%;overflow-x:auto;scrollbar-width:none}
 .tabs::-webkit-scrollbar{display:none}
 .tabs a{white-space:nowrap}
-@media (max-width:420px){.tabs a{padding:6px 11px;font-size:15px}}
+@media (max-width:440px){.tabs{align-self:stretch;justify-content:space-between;gap:2px}.tabs a{padding:6px 7px;font-size:14px;flex:1 1 auto;text-align:center}}
 .manque{align-self:flex-start;border:0;background:none;padding:2px 0;margin-top:2px;color:var(--green);font:inherit;font-size:14px;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px;cursor:pointer}
 .manque:hover{text-decoration-color:var(--green)}
 .manque:disabled{color:var(--faint);text-decoration:none;cursor:default}
@@ -258,6 +258,11 @@ details.later[open] summary{margin-bottom:10px}
 .chip-m{border:1px dashed var(--green);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 11px;font:inherit;font-size:14px;cursor:pointer}
 .chip-m:hover{border-style:solid}
 .chip-m:disabled{border-style:solid;border-color:var(--green-soft);background:var(--green-soft);color:var(--green);cursor:default}
+.vac-form{display:flex;flex-direction:column;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.vac-form input[type=date]{font:inherit;font-size:max(16px,1em);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;align-self:flex-start}
+.vac-ecran{display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:var(--mustard-soft);border-radius:14px;padding:20px}
+.vac-ecran h2{font-size:28px}
+.vac-ecran p{margin:0;font-size:18px}
 </style>
 </head>
 <body>
@@ -269,7 +274,7 @@ details.later[open] summary{margin-bottom:10px}
 </svg>
 </div>
 <div class="wrap">
-  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html" aria-current="page">Ménage</a><a href="courses.html">Courses</a><a href="reparations.html">À réparer</a></nav>
+  <nav class="tabs" aria-label="Sections"><a href="./">Aujourd’hui</a><a href="budget.html">Budget</a><a href="menage.html" aria-current="page">Ménage</a><a href="courses.html">Courses</a><a href="reparations.html">À réparer</a></nav>
   <header>
     <div>
       <h1>Le ménage</h1>
@@ -424,6 +429,7 @@ function render(){
     $('#seed').onclick = seed; return;
   }
   if(editing) return renderEdit();
+  if(vacances.actif) return renderVacances();
 
   const auj = isoDay(today());
   const tri = (a,b) => a.n - b.n || a.t.nom.localeCompare(b.t.nom);
@@ -467,10 +473,60 @@ function render(){
   <div class="foot">
     <span class="hint">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b></span>
     <button class="link" id="edit">Modifier la liste</button>
+    <button class="link" id="partir">Partir en vacances</button>
     ${notifHtml()}
+  </div>
+  <div class="vac-form" id="vacForm" hidden>
+    <strong>Mettre le ménage en pause</strong>
+    <p class="hint" style="margin:0">Pas de rappels pendant votre absence. Au retour, les tâches reprennent là où vous les aviez laissées, au lieu d’être toutes en retard.</p>
+    <label class="hint" for="vacFin">Retour prévu le (facultatif)</label>
+    <input type="date" id="vacFin" min="${isoDay(today())}">
+    <div class="toolbar"><button class="primary" id="vacGo">Mettre en pause</button><button class="link" id="vacNon">Annuler</button></div>
   </div>`;
   $('#edit').onclick = () => { editing = true; render(); };
+  $('#partir').onclick = () => { $('#vacForm').hidden = false; $('#vacForm').scrollIntoView({behavior:'smooth', block:'center'}); };
+  $('#vacNon').onclick = () => { $('#vacForm').hidden = true; };
+  $('#vacGo').onclick = async () => {
+    const fin = $('#vacFin').value || null;
+    await fs.doc('reglages/vacances').set({actif:true, debut: isoDay(today()), fin, par: moi.cle});
+    flash('Bonnes vacances ! Le ménage est en pause.');
+  };
   const nb = $('#notif'); if(nb) nb.onclick = activerNotifs;
+}
+
+/* ---------- mode vacances ---------- */
+let vacances = {};
+function renderVacances(){
+  const debut = P.lireJour(vacances.debut), fin = vacances.fin ? P.lireJour(vacances.fin) : null;
+  const jolie = d => d.toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'});
+  app.innerHTML = `<section class="vac-ecran">
+    <h2>En vacances</h2>
+    <p>Depuis ${jolie(debut)}${fin ? `, retour prévu ${jolie(fin)}` : ''}.</p>
+    <p class="hint">Le ménage et ses rappels sont en pause. Au retour, chaque tâche reprendra avec le même temps restant qu’avant le départ.</p>
+    <button class="primary" id="rentres">On est rentrés</button>
+  </section>
+  <div class="foot"><span class="hint">Connecté en tant que <b class="who-${moi.cle}">${esc(moi.nom)}</b></span><button class="link" id="edit">Modifier la liste</button></div>`;
+  $('#rentres').onclick = () => finirVacances(today());
+  $('#edit').onclick = () => { editing = true; render(); };
+}
+// Décale la dernière fois de chaque tâche du nombre de jours d'absence
+let finEnCours = false;
+async function finirVacances(retour){
+  if(finEnCours || !vacances.actif) return; finEnCours = true;
+  try{
+    const debut = P.lireJour(vacances.debut);
+    const jours = Math.max(0, Math.round((retour - debut)/86400000));
+    const b = fs.batch(); let n = 0;
+    tasks.forEach(t => {
+      const d = P.lireJour(t.dernier);
+      if(!d || d >= debut || t.apres) return;            // jamais faite, faite pendant l'absence, ou tâche liée : on ne touche pas
+      let nd = P.plus(d, jours); if(nd > today()) nd = today();
+      b.update(col.doc(t.id), {dernier: isoDay(nd)}); n++;
+    });
+    b.set(fs.doc('reglages/vacances'), {actif:false, debut:null, fin:null, retour: isoDay(retour), jours});
+    await b.commit();
+    flash(`Bon retour ! Les tâches ont été décalées de ${jours} jour${jours>1?'s':''}.`);
+  } finally { finEnCours = false; }
 }
 
 function freqHtml(t){
@@ -713,12 +769,18 @@ auth.onAuthStateChanged(async u => {
       return t;
     });
     parId = Object.fromEntries(tasks.map(t => [t.id, t]));
+    if(vacances.actif && vacances.fin && today() > P.lireJour(vacances.fin)) finirVacances(P.lireJour(vacances.fin));
     if(!suitesFaites && tasks.length) mettreSuites();
     loaded = true;
     const a = document.activeElement;
     if(editing && a && a.closest && a.closest('.edit-row') && snap.docs.length === app.querySelectorAll('.edit-row').length) return;
     render();
   }, refuse);
+  fs.doc('reglages/vacances').onSnapshot(snap => {
+    vacances = snap.exists ? snap.data() : {};
+    if(vacances.actif && vacances.fin && today() > P.lireJour(vacances.fin) && loaded) finirVacances(P.lireJour(vacances.fin));
+    if(!editing) render();
+  }, () => {});
   hist.orderBy('ts','desc').limit(200).onSnapshot(snap => {
     // Retire les doublons (même tâche cochée plusieurs fois le même jour)
     const vus = new Set();
