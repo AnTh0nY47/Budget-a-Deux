@@ -1,6 +1,6 @@
 // Garde une copie de l'appli pour qu'elle s'ouvre vite, même avec peu de réseau.
 // Les données du budget, elles, passent toujours par Firebase.
-const CACHE = 'cheznous-v20';
+const CACHE = 'cheznous-v21';
 const FICHIERS = ['./', './index.html', './calcul-budget.js', './resume.js', './reseau.js', './theme.js', './icons/favicon-32.png', './icons/icon-maskable-512.png', './menage.html', './courses.html', './reparations.html', './planning.js', './sauvegarde.js', './firebase-config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 

@@ -274,6 +274,27 @@ details.later[open] summary{margin-bottom:10px}
   --on-green:#0e2219; --focus-bg:#222c27; --danger-soft:#3a2420; --mustard-ink:#e2b54c; --hover-soft:rgba(92,195,154,.1); --toast-bg:#2c3832;
   color-scheme:dark;
 }
+.cal-tete{display:flex;align-items:center;justify-content:space-between;margin:6px 0 10px}
+.cal-tete span{text-transform:capitalize;font-size:17px}
+.cal-tete .icon:disabled{opacity:.3}
+.cal-equilibre{display:flex;height:6px;border-radius:999px;overflow:hidden;gap:2px;background:var(--line);margin-bottom:4px}
+.cal-equilibre i{display:block;height:100%}
+.pa{background:var(--a)} .pb{background:var(--b)}
+.cal-grille{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+.cal-j{text-align:center;font-size:12px;color:var(--faint)}
+.cal-c{aspect-ratio:1/1.05;border:1px solid var(--line);background:var(--card);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:4px 2px;font:inherit;color:var(--ink);cursor:pointer;min-width:0}
+.cal-c.vide{border:0;background:none;cursor:default}
+.cal-c.futur{opacity:.35;cursor:default}
+.cal-c.auj{border-color:var(--green)}
+.cal-c.choisi{background:var(--green-soft);border-color:var(--green)}
+.cal-n{font-size:13px;line-height:1}
+.cal-p{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;max-width:100%}
+.cal-p i{width:6px;height:6px;border-radius:50%;display:block}
+.cal-legende{display:flex;gap:16px;font-size:14px;color:var(--muted);margin:8px 0}
+.cal-legende i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.cal-detail strong{text-transform:capitalize;font-weight:500}
+.bloc summary{flex-wrap:wrap;gap:2px 12px}
+.bloc summary .tally{min-width:0}
 </style>
 <script src="theme.js"></script>
 </head>
@@ -414,17 +435,44 @@ function ligne(t, variante){
   </li>`;
 }
 
+// Vue du mois : un calendrier qui montre jour par jour qui a fait quoi
+let calMois = null, calJour = null, calOuvert = false;
 function histoHtml(){
-  const debut = new Date(today().getFullYear(), today().getMonth(), 1);
-  const cpt = {a:0, b:0};
-  histo.filter(h => P.lireJour(h.jour) >= debut).forEach(h => { if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
-  const mois = debut.toLocaleDateString('fr-FR',{month:'long'});
-  return `<details class="bloc histo">
-    <summary><span>En ${mois}</span><span class="tally"><b class="who-a">${esc(personnes.a)}</b> ${cpt.a} · <b class="who-b">${esc(personnes.b)}</b> ${cpt.b}</span></summary>
-    ${histo.length ? `<ul class="hlist">${histo.slice(0,15).map(h => `<li><b class="who-${h.cle||''}">${esc(h.par)}</b> ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}<small>${ilYa(h.jour)}</small></li>`).join('')}</ul>` : '<p class="hint">Rien de noté pour l’instant.</p>'}
+  if(!calMois) calMois = new Date(today().getFullYear(), today().getMonth(), 1);
+  const an = calMois.getFullYear(), mo = calMois.getMonth();
+  const cle = d => isoDay(d);
+  const duMois = histo.filter(h => { const d = P.lireJour(h.jour); return d && d.getFullYear() === an && d.getMonth() === mo; });
+  const parJour = {}; duMois.forEach(h => { (parJour[h.jour] = parJour[h.jour] || []).push(h); });
+  const cpt = {a:0, b:0}; duMois.forEach(h => { if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
+  const total = cpt.a + cpt.b;
+  const nomMois = calMois.toLocaleDateString('fr-FR',{month:'long', year:'numeric'});
+  const premier = new Date(an, mo, 1), nbJours = new Date(an, mo+1, 0).getDate();
+  const decal = (premier.getDay() + 6) % 7;   // lundi en premier
+  let cases = '';
+  for(let k = 0; k < decal; k++) cases += '<div class="cal-c vide"></div>';
+  for(let j = 1; j <= nbJours; j++){
+    const d = new Date(an, mo, j), c = cle(d), l = parJour[c] || [];
+    const na = l.filter(h => h.cle === 'a').length, nb = l.filter(h => h.cle === 'b').length;
+    const futur = d > today(), auj = c === isoDay(today());
+    cases += `<button class="cal-c${futur?' futur':''}${auj?' auj':''}${calJour===c?' choisi':''}" data-jour="${c}" ${futur?'disabled':''} aria-label="${d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} : ${na} par ${esc(personnes.a)}, ${nb} par ${esc(personnes.b)}">
+      <span class="cal-n">${j}</span>
+      <span class="cal-p">${'<i class="pa"></i>'.repeat(Math.min(na,4))}${'<i class="pb"></i>'.repeat(Math.min(nb,4))}</span>
+    </button>`;
+  }
+  const detail = calJour && parJour[calJour] ? `<div class="cal-detail"><strong>${P.lireJour(calJour).toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'})}</strong>
+      <ul class="hlist">${parJour[calJour].map(h => `<li><b class="who-${h.cle||''}">${esc(personnes[h.cle]||h.par)}</b> ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}</li>`).join('')}</ul></div>`
+    : calJour ? `<p class="hint">Rien de noté ce jour-là.</p>` : `<p class="hint">Touche un jour pour voir le détail.</p>`;
+  const part = k => total ? Math.round(cpt[k]/total*100) : 0;
+  return `<details class="bloc histo" ${calOuvert?'open':''} id="calBloc">
+    <summary><span>Le mois en un coup d’œil</span><span class="tally"><b class="who-a">${esc(personnes.a)}</b> ${cpt.a} · <b class="who-b">${esc(personnes.b)}</b> ${cpt.b}</span></summary>
+    <div class="cal-tete"><button class="icon" data-cal="-1" aria-label="Mois précédent">‹</button><span>${nomMois}</span><button class="icon" data-cal="1" aria-label="Mois suivant" ${an === today().getFullYear() && mo === today().getMonth() ? 'disabled' : ''}>›</button></div>
+    ${total ? `<div class="cal-equilibre" aria-hidden="true"><i class="pa" style="width:${part('a')}%"></i><i class="pb" style="width:${part('b')}%"></i></div>
+      <p class="hint" style="margin:0">${esc(personnes.a)} ${part('a')} %, ${esc(personnes.b)} ${part('b')} % des tâches ce mois-ci.</p>` : '<p class="hint" style="margin:0">Rien de noté ce mois-ci.</p>'}
+    <div class="cal-grille">${['L','M','M','J','V','S','D'].map(x => `<div class="cal-j">${x}</div>`).join('')}${cases}</div>
+    <div class="cal-legende"><span><i class="pa"></i>${esc(personnes.a)}</span><span><i class="pb"></i>${esc(personnes.b)}</span></div>
+    ${detail}
   </details>`;
 }
-
 function notifHtml(){
   const ok = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
   const vapid = window.FIREBASE_VAPID_KEY && !/A_REMPLIR/.test(window.FIREBASE_VAPID_KEY);
@@ -498,6 +546,7 @@ function render(){
     <input type="date" id="vacFin" min="${isoDay(today())}">
     <div class="toolbar"><button class="primary" id="vacGo">Mettre en pause</button><button class="link" id="vacNon">Annuler</button></div>
   </div>`;
+  const cb = $('#calBloc'); if(cb) cb.addEventListener('toggle', () => { calOuvert = cb.open; });
   $('#edit').onclick = () => { editing = true; render(); };
   $('#partir').onclick = () => { $('#vacForm').hidden = false; $('#vacForm').scrollIntoView({behavior:'smooth', block:'center'}); };
   $('#vacNon').onclick = () => { $('#vacForm').hidden = true; };
@@ -615,6 +664,10 @@ app.addEventListener('change', e => {
 
 let toastTimer = null;
 app.addEventListener('click', async e => {
+  const cm = e.target.closest('[data-cal]');
+  if(cm){ calMois = new Date(calMois.getFullYear(), calMois.getMonth() + (+cm.dataset.cal), 1); calJour = null; render(); return; }
+  const cj = e.target.closest('[data-jour]');
+  if(cj){ calJour = calJour === cj.dataset.jour ? null : cj.dataset.jour; render(); return; }
   const ouvrir = e.target.closest('[data-ouvrir]');
   if(ouvrir){ const z = ouvrir.nextElementSibling; z.hidden = !z.hidden; ouvrir.setAttribute('aria-expanded', !z.hidden); return; }
   const manque = e.target.closest('[data-manque]');
@@ -819,7 +872,7 @@ auth.onAuthStateChanged(async u => {
     if(vacances.actif && vacances.fin && today() > P.lireJour(vacances.fin) && loaded) finirVacances(P.lireJour(vacances.fin));
     if(!editing) render();
   }, () => {});
-  hist.orderBy('ts','desc').limit(200).onSnapshot(snap => {
+  hist.orderBy('ts','desc').limit(600).onSnapshot(snap => {
     // Retire les doublons (même tâche cochée plusieurs fois le même jour)
     const vus = new Set();
     snap.docs.slice().reverse().forEach(d => { const h = d.data(); const k = h.tache+'|'+h.jour; if(vus.has(k)) hist.doc(d.id).delete().catch(()=>{}); else vus.add(k); });
