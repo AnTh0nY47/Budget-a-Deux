@@ -57,8 +57,9 @@
     return `tous les ${n} jours`;
   }
 
-  // Points du défi du mois : une tâche rare rapporte plus qu'une tâche de tous les jours
+  // Points du défi du mois : réglables par tâche, sinon une tâche rare rapporte plus qu'une tâche de tous les jours
   function points(t) {
+    if (t && typeof t.pointsDefi === 'number') return t.pointsDefi; // réglé à la main (0 = hors défi)
     if (!t || t.apres || joursPrecis(t)) return 1;
     const n = t.jours || 7;
     if (n <= 3) return 1;
@@ -75,7 +76,10 @@
       const d = lireJour(h.jour);
       if (!d || d.getFullYear() !== an || d.getMonth() !== mois || !(h.cle in s.nb)) return;
       const k = h.tache + '|' + h.jour; if (vus.has(k)) return; vus.add(k);
-      s[h.cle] += points(tous && tous[h.tache]); s.nb[h.cle]++;
+      const pts = points(tous && tous[h.tache]);
+      if (!pts) return;                                   // tâche hors défi
+      if (h.aDeux) { s.a += pts; s.b += pts; s.nb.a++; s.nb.b++; } // faite ensemble : les deux marquent
+      else { s[h.cle] += pts; s.nb[h.cle]++; }
     });
     s.gagnant = s.a === s.b ? null : (s.a > s.b ? 'a' : 'b');
     return s;

@@ -310,6 +310,10 @@ details.later[open] summary{margin-bottom:10px}
 .gage-ligne input:focus{outline:none;border-color:var(--green)}
 .chips-gage{display:flex;flex-wrap:wrap;gap:6px}
 .petit-hint{font-size:13px !important;margin:0}
+.defi-reglage{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--muted);grid-column:1 / -2}
+.defi-reglage select{width:auto !important;font-size:max(15px,.9em) !important;padding:4px 6px !important}
+.chip-m.adeux.on{border-style:solid;border-color:var(--green);background:var(--green-soft);color:var(--green)}
+@media (max-width:560px){ .edit-row{grid-template-areas:"n d" "f d" "x d" "p d" !important} .defi-reglage{grid-area:x;grid-column:auto} }
 </style>
 <script src="theme.js"></script>
 </head>
@@ -438,7 +442,7 @@ function ligne(t, variante){
     else if(t.apres) sous = 'suite de « ' + esc((parId[t.apres]||{}).nom||'') + ' »';
     else if(t.dernier) sous = 'dernière fois ' + ilYa(t.dernier) + qui(t);
   } else if(variante === 'fait'){
-    sous = 'fait' + qui(t);
+    sous = (t.dernierADeux ? 'fait à deux' : 'fait' + qui(t)) + (P.points(t) ? ` · <button class="manque" data-adeux-fait="${t.id}">${t.dernierADeux ? 'en fait, fait seul' : 'fait à deux ?'}</button>` : '');
   } else if(variante === 'jamais'){
     sous = esc(P.frequence(t, parId));
   }
@@ -484,7 +488,7 @@ function defiHtml(){
     <div class="defi-noms"><span><b class="who-a">${esc(personnes.a)}</b> ${sc.a} pt${sc.a>1?'s':''}</span><span>${sc.b} pt${sc.b>1?'s':''} <b class="who-b">${esc(personnes.b)}</b></span></div>
     ${gage}
     ${dernier ? `<p class="hint" style="margin:0">${dernier}</p>` : ''}
-    <p class="hint petit-hint">1 point pour une tâche de tous les jours, 2 pour une tâche de la semaine, 3 tous les 15 jours, 4 au-delà.</p>
+    <p class="hint petit-hint">Par défaut, 1 point pour une tâche de tous les jours, 2 pour la semaine, 3 tous les 15 jours, 4 au-delà. Chaque tâche se règle dans « Modifier la liste » : ses points, hors défi, ou à deux (les deux marquent).</p>
   </section>`;
 }
 
@@ -496,7 +500,7 @@ function histoHtml(){
   const cle = d => isoDay(d);
   const duMois = histo.filter(h => { const d = P.lireJour(h.jour); return d && d.getFullYear() === an && d.getMonth() === mo; });
   const parJour = {}; duMois.forEach(h => { (parJour[h.jour] = parJour[h.jour] || []).push(h); });
-  const cpt = {a:0, b:0}; duMois.forEach(h => { if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
+  const cpt = {a:0, b:0}; duMois.forEach(h => { if(h.aDeux){ cpt.a++; cpt.b++; } else if(cpt[h.cle] !== undefined) cpt[h.cle]++; });
   const total = cpt.a + cpt.b;
   const nomMois = calMois.toLocaleDateString('fr-FR',{month:'long', year:'numeric'});
   const premier = new Date(an, mo, 1), nbJours = new Date(an, mo+1, 0).getDate();
@@ -505,7 +509,7 @@ function histoHtml(){
   for(let k = 0; k < decal; k++) cases += '<div class="cal-c vide"></div>';
   for(let j = 1; j <= nbJours; j++){
     const d = new Date(an, mo, j), c = cle(d), l = parJour[c] || [];
-    const na = l.filter(h => h.cle === 'a').length, nb = l.filter(h => h.cle === 'b').length;
+    const na = l.filter(h => h.cle === 'a' || h.aDeux).length, nb = l.filter(h => h.cle === 'b' || h.aDeux).length;
     const futur = d > today(), auj = c === isoDay(today());
     cases += `<button class="cal-c${futur?' futur':''}${auj?' auj':''}${calJour===c?' choisi':''}" data-jour="${c}" ${futur?'disabled':''} aria-label="${d.toLocaleDateString('fr-FR',{day:'numeric',month:'long'})} : ${na} par ${esc(personnes.a)}, ${nb} par ${esc(personnes.b)}">
       <span class="cal-n">${j}</span>
@@ -513,7 +517,7 @@ function histoHtml(){
     </button>`;
   }
   const detail = calJour && parJour[calJour] ? `<div class="cal-detail"><strong>${P.lireJour(calJour).toLocaleDateString('fr-FR',{weekday:'long', day:'numeric', month:'long'})}</strong>
-      <ul class="hlist">${parJour[calJour].map(h => `<li><b class="who-${h.cle||''}">${esc(personnes[h.cle]||h.par)}</b> ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}</li>`).join('')}</ul></div>`
+      <ul class="hlist">${parJour[calJour].map(h => `<li>${h.aDeux ? '<b>À deux</b>' : `<b class="who-${h.cle||''}">${esc(personnes[h.cle]||h.par)}</b>`} ${esc(h.nom.charAt(0).toLowerCase()+h.nom.slice(1))}</li>`).join('')}</ul></div>`
     : calJour ? `<p class="hint">Rien de noté ce jour-là.</p>` : `<p class="hint">Touche un jour pour voir le détail.</p>`;
   const part = k => total ? Math.round(cpt[k]/total*100) : 0;
   return `<details class="bloc histo" ${calOuvert?'open':''} id="calBloc">
@@ -672,6 +676,14 @@ function renderEdit(){
     <div class="tasks">${tasks.slice().sort((a,b)=>a.nom.localeCompare(b.nom)).map(t => `<div class="edit-row" data-id="${t.id}">
       <input class="n" data-f="nom" value="${esc(t.nom)}" aria-label="Tâche">
       ${freqHtml(t)}
+      <span class="defi-reglage">Défi :
+        <select data-f="defi" aria-label="Points du défi pour ${esc(t.nom)}">
+          <option value="auto"${typeof t.pointsDefi !== 'number' ? ' selected' : ''}>auto (${P.points({...t, pointsDefi: undefined})} pt${P.points({...t, pointsDefi: undefined})>1?'s':''})</option>
+          ${[1,2,3,4,5].map(n => `<option value="${n}"${t.pointsDefi === n ? ' selected' : ''}>${n} pt${n>1?'s':''}</option>`).join('')}
+          <option value="0"${t.pointsDefi === 0 ? ' selected' : ''}>hors défi</option>
+        </select>
+        <button type="button" class="chip-m adeux${t.aDeux ? ' on' : ''}" data-adeux="${t.id}" aria-pressed="${t.aDeux ? 'true' : 'false'}">à deux</button>
+      </span>
       <input class="prod" data-f="produits" value="${esc(produitsDe(t).join(', '))}" placeholder="Produits utilisés, séparés par des virgules" aria-label="Produits utilisés pour ${esc(t.nom)}">
       <button class="del" data-del="${t.id}" aria-label="Supprimer ${esc(t.nom)}">×</button></div>`).join('')}</div>
     <div class="toolbar" style="margin-top:12px"><button class="add" id="addTask">Ajouter une tâche</button><button class="link" id="back">Terminé</button></div>
@@ -691,7 +703,8 @@ function sauverLigne(row){
   clearTimeout(timers[id]);
   timers[id] = setTimeout(() => {
     const u = row.querySelector('[data-f="u"]').value;
-    const maj = { nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom', produits: row.querySelector('[data-f="produits"]').value.split(',').map(x => x.trim()).filter(Boolean), produit: firebase.firestore.FieldValue.delete() };
+    const vd = row.querySelector('[data-f="defi"]').value;
+    const maj = { pointsDefi: vd === 'auto' ? firebase.firestore.FieldValue.delete() : Number(vd), nom: row.querySelector('[data-f="nom"]').value.trim() || 'Sans nom', produits: row.querySelector('[data-f="produits"]').value.split(',').map(x => x.trim()).filter(Boolean), produit: firebase.firestore.FieldValue.delete() };
     if(u === 'a'){
       maj.apres = row.querySelector('[data-f="apres"]').value || null;
       maj.delai = parseInt(row.querySelector('[data-f="delai"]').value,10) || 0;
@@ -709,6 +722,7 @@ function sauverLigne(row){
 app.addEventListener('input', e => { const row = e.target.closest('.edit-row'); if(row && e.target.matches('input')) sauverLigne(row); });
 app.addEventListener('change', e => {
   const row = e.target.closest('.edit-row'); if(!row || !e.target.matches('select')) return;
+  if(e.target.dataset.f === 'defi'){ sauverLigne(row); return; }
   if(e.target.dataset.f === 'u'){
     const v = e.target.value, precis = v === 'j', apres = v === 'a';
     row.querySelector('.every').hidden = precis || apres; row.querySelector('.days').hidden = !precis; row.querySelector('.after').hidden = !apres;
@@ -719,6 +733,16 @@ app.addEventListener('change', e => {
 
 let toastTimer = null;
 app.addEventListener('click', async e => {
+  const ad = e.target.closest('[data-adeux]');
+  if(ad){ const t = tasks.find(x => x.id === ad.dataset.adeux); if(t){ await col.doc(t.id).update({aDeux: !t.aDeux}); } return; }
+  const adf = e.target.closest('[data-adeux-fait]');
+  if(adf){
+    const t = tasks.find(x => x.id === adf.dataset.adeuxFait); if(!t) return;
+    const v = !t.dernierADeux, b = fs.batch();
+    b.update(col.doc(t.id), {dernierADeux: v});
+    if(t.histId) b.update(hist.doc(t.histId), {aDeux: v});
+    await b.commit(); return;
+  }
   const cg = e.target.closest('[data-gage]');
   if(cg){ $('#defiGage').value = cg.dataset.gage; $('#defiGage').focus(); return; }
   if(e.target.id === 'defiChanger'){ gageEdition = true; render(); $('#defiGage') && $('#defiGage').focus(); return; }
@@ -760,9 +784,10 @@ async function cocher(t, bouton){
   const jour = isoDay(today());
   const h = hist.doc();
   const b = fs.batch();
-  b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle,
-    precedent: {dernier: t.dernier||null, par: t.par||'', cle: t.cle||''}, histId: h.id});
-  b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, jour, ts: firebase.firestore.FieldValue.serverTimestamp()});
+  const ensemble = !!t.aDeux;
+  b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle, dernierADeux: ensemble,
+    precedent: {dernier: t.dernier||null, par: t.par||'', cle: t.cle||'', dernierADeux: !!t.dernierADeux}, histId: h.id});
+  b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, aDeux: ensemble, jour, ts: firebase.firestore.FieldValue.serverTimestamp()});
   await b.commit();
   dernierCoche = t.id;
   $('#toastMsg').textContent = `${t.nom} : c\u2019est noté`;
@@ -772,7 +797,7 @@ async function cocher(t, bouton){
 async function decocher(t){
   const p = t.precedent || {dernier:null, par:'', cle:''};
   const b = fs.batch();
-  b.update(col.doc(t.id), {dernier: p.dernier||null, par: p.par||'', cle: p.cle||'', precedent: null, histId: null});
+  b.update(col.doc(t.id), {dernier: p.dernier||null, par: p.par||'', cle: p.cle||'', dernierADeux: !!p.dernierADeux, precedent: null, histId: null});
   if(t.histId) b.delete(hist.doc(t.histId));
   else { // ancienne coche sans référence : on retire l'entrée du jour dans l'historique
     const q = await hist.where('tache','==',t.id).where('jour','==',t.dernier).get().catch(()=>null);
@@ -801,6 +826,24 @@ async function ajouterSuite(suite){
     precedent = ref.id;
   }
   await b.commit();
+}
+
+// Une seule fois : réglages du défi adaptés à la maison (four = pyrolyse, vitres hors défi, draps à deux)
+let defiInitFait = false;
+async function initDefi(){
+  if(defiInitFait) return; defiInitFait = true;
+  try{
+    const ref = fs.doc('reglages/menage');
+    if(((await ref.get()).data() || {}).defiInit) return;
+    const b = fs.batch();
+    tasks.forEach(t => {
+      if(/four/i.test(t.nom) && typeof t.pointsDefi !== 'number') b.update(col.doc(t.id), {pointsDefi: 1});
+      if(/vitres/i.test(t.nom) && typeof t.pointsDefi !== 'number') b.update(col.doc(t.id), {pointsDefi: 0});
+      if(/draps/i.test(t.nom) && t.aDeux === undefined) b.update(col.doc(t.id), {aDeux: true});
+    });
+    b.set(ref, {defiInit: true}, {merge: true});
+    await b.commit();
+  }catch(e){ console.warn(e); }
 }
 
 // Une seule fois : met en place le linge et le lave-vaisselle chez ceux qui avaient l'ancienne liste
@@ -925,6 +968,7 @@ auth.onAuthStateChanged(async u => {
     parId = Object.fromEntries(tasks.map(t => [t.id, t]));
     if(vacances.actif && vacances.fin && today() > P.lireJour(vacances.fin)) finirVacances(P.lireJour(vacances.fin));
     if(!suitesFaites && tasks.length) mettreSuites();
+    if(!defiInitFait && tasks.length) initDefi();
     loaded = true;
     const a = document.activeElement;
     if(editing && a && a.closest && a.closest('.edit-row') && snap.docs.length === app.querySelectorAll('.edit-row').length) return;
