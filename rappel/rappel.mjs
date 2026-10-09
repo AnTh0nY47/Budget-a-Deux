@@ -1,5 +1,5 @@
-// Envoie les rappels du soir sur les téléphones :
-// le ménage quand des tâches sont à faire, et le virement du mois le 1er puis tous les 3 jours tant qu'il n'est pas coché.
+// Envoie les rappels sur les téléphones, deux fois par jour :
+// à midi, le ménage du jour ; à 18h, le ménage qui reste, et le virement du mois le 1er puis tous les 3 jours tant qu'il n'est pas coché.
 // Ce script tourne sur GitHub et ses journaux sont publics : il n'y affiche jamais un nom, une tâche ni un montant.
 import admin from 'firebase-admin';
 import { createRequire } from 'module';
@@ -12,19 +12,24 @@ if (!cle) { console.error('Secret FIREBASE_SERVICE_ACCOUNT manquant'); process.e
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(cle)) });
 const db = admin.firestore();
 
-// Heure de Paris (TZ=Europe/Paris dans la tâche). GitHub lance la tâche deux fois vers 17h45,
-// une pour l'heure d'été et une pour l'heure d'hiver : on n'envoie qu'entre 17h30 et 20h, une seule fois par jour.
+// Heure de Paris (TZ=Europe/Paris dans la tâche). GitHub lance la tâche deux fois avant chaque rappel,
+// une pour l'heure d'été et une pour l'heure d'hiver : on garde le bon créneau, on attend l'heure pile,
+// et chaque rappel n'est envoyé qu'une fois par jour.
+const CRENEAUX = { midi: { heure: 12, de: 11 * 60 + 30, a: 13 * 60 + 30 }, soir: { heure: 18, de: 17 * 60 + 30, a: 20 * 60 } };
 const manuel = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch';
 const maintenant = new Date();
 const minutes = maintenant.getHours() * 60 + maintenant.getMinutes();
-if (!manuel && (minutes < 17 * 60 + 30 || minutes > 20 * 60)) { console.log('Pas la bonne heure, rien à faire.'); process.exit(0); }
+let creneau = Object.keys(CRENEAUX).find(k => minutes >= CRENEAUX[k].de && minutes <= CRENEAUX[k].a);
+if (manuel) creneau = minutes < 15 * 60 ? 'midi' : 'soir';
+if (!creneau) { console.log('Pas la bonne heure, rien à faire.'); process.exit(0); }
 const aujourdhui = new Date(); aujourdhui.setHours(0, 0, 0, 0);
 const jourIso = `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}-${String(aujourdhui.getDate()).padStart(2, '0')}`;
 const reglage = db.doc('reglages/rappel');
-if (!manuel && ((await reglage.get()).data() || {}).dernierEnvoi === jourIso) { console.log('Rappel déjà envoyé aujourd\'hui.'); process.exit(0); }
-// On attend 18h00 pile si on est en avance
-const attente = new Date(aujourdhui); attente.setHours(18, 0, 0, 0);
-if (!manuel && attente - Date.now() > 0) { console.log('Attente de 18h00.'); await new Promise(r => setTimeout(r, attente - Date.now())); }
+const champ = creneau === 'soir' ? 'dernierEnvoi' : 'dernierEnvoiMidi';
+if (!manuel && ((await reglage.get()).data() || {})[champ] === jourIso) { console.log('Rappel déjà envoyé pour ce créneau.'); process.exit(0); }
+// On attend l'heure pile si on est en avance
+const attente = new Date(aujourdhui); attente.setHours(CRENEAUX[creneau].heure, 0, 0, 0);
+if (!manuel && attente - Date.now() > 0) { console.log('Attente de l\'heure du rappel.'); await new Promise(r => setTimeout(r, attente - Date.now())); }
 const messages = [];
 
 // 1. Le ménage
@@ -39,14 +44,16 @@ if (aFaire.length && !vac.actif) {
   const noms = aFaire.map(t => t.nom);
   messages.push({
     tag: 'menage', url: './menage.html',
-    title: noms.length === 1 ? 'Une chose à faire ce soir' : `${noms.length} choses à faire`,
+    title: creneau === 'midi'
+      ? (noms.length === 1 ? 'Une chose à faire aujourd’hui' : `${noms.length} choses à faire aujourd’hui`)
+      : (noms.length === 1 ? 'Encore une chose à faire ce soir' : `Encore ${noms.length} choses à faire ce soir`),
     body: noms.length <= 3 ? noms.join(', ') : `${noms.slice(0, 3).join(', ')} et ${noms.length - 3} autre${noms.length - 3 > 1 ? 's' : ''}`
   });
 }
 
 // 2. Le virement : le 1er du mois, puis le 4, le 7, etc. tant qu'il n'est pas coché
 const jourDuMois = aujourdhui.getDate();
-if (manuel || (jourDuMois - 1) % 3 === 0) {
+if (creneau === 'soir' && (manuel || (jourDuMois - 1) % 3 === 0)) {
   const cleMois = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   const main = (await db.doc('budget/main').get()).data();
   const mois = (await db.doc(`mois/${cleMois(aujourdhui)}`).get()).data() || {};
@@ -88,5 +95,5 @@ for (const m of messages) {
 }
 // On oublie les téléphones qui ne répondent plus (appli supprimée, notifications coupées)
 await Promise.all([...morts].map(j => db.collection('appareils').doc(j).delete()));
-if (!manuel) await reglage.set({ dernierEnvoi: jourIso }, { merge: true });
+if (!manuel) await reglage.set({ [champ]: jourIso }, { merge: true });
 console.log(`${messages.length} rappel(s) envoyé(s) : ${ok} réussi(s), ${ko} échec(s), ${morts.size} téléphone(s) retiré(s).`);

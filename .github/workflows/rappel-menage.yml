@@ -2,8 +2,10 @@ name: Rappel du ménage
 
 on:
   schedule:
-    # Tous les soirs à 18h, heure de Paris. Deux lancements (heure d'été, heure d'hiver),
-    # le script garde le bon, attend 18h00 et n'envoie qu'une fois par jour.
+    # À midi et à 18h, heure de Paris. Deux lancements par rappel (heure d'été, heure d'hiver),
+    # le script garde le bon, attend l'heure pile et n'envoie qu'une fois par créneau.
+    - cron: '40 9 * * *'
+    - cron: '40 10 * * *'
     - cron: '40 15 * * *'
     - cron: '40 16 * * *'
   workflow_dispatch:
