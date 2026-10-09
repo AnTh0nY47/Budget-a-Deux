@@ -77,9 +77,15 @@
     const aAcheter = courses.docs.map(d => d.data()).filter(c => !c.pris);
     if (aAcheter.length) lignes.push(['courses.html', `Les courses, ${aAcheter.length} article${aAcheter.length > 1 ? 's' : ''}`, esc(aAcheter.slice(0, 5).map(c => c.nom.charAt(0).toLowerCase() + c.nom.slice(1)).join(', ')) + (aAcheter.length > 5 ? '…' : '')]);
 
-    // Réparations urgentes
-    const urgents = reps.docs.map(d => d.data()).filter(r => !r.fait && r.urgence === 'urgent');
-    if (urgents.length) lignes.push(['reparations.html', `À réparer, ${urgents.length} urgent${urgents.length > 1 ? 's' : ''}`, esc(urgents.slice(0, 3).map(r => r.titre).join(', '))]);
+    // Réparations en attente, les urgentes d'abord
+    const ordre = { urgent: 0, bientot: 1, unjour: 2 };
+    const ouverts = reps.docs.map(d => d.data()).filter(r => !r.fait)
+      .sort((a, b) => (ordre[a.urgence] ?? 1) - (ordre[b.urgence] ?? 1));
+    if (ouverts.length) {
+      const noms = ouverts.slice(0, 4).map(r => esc(r.titre) + (r.urgence === 'urgent' ? ' <span class="late">(urgent)</span>' : '')).join(', ');
+      const reste = ouverts.length > 4 ? ` et ${ouverts.length - 4} autre${ouverts.length - 4 > 1 ? 's' : ''}` : '';
+      lignes.push(['reparations.html', `À réparer, ${ouverts.length} chose${ouverts.length > 1 ? 's' : ''}`, noms + reste]);
+    }
 
     const h = new Date().getHours();
     const date = auj.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });

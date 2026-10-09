@@ -14,7 +14,7 @@ Le site est hébergé sur GitHub Pages. Les chiffres sont stockés dans Firebase
 
 ## Le résumé du jour
 
-À chaque ouverture de l'appli, une fenêtre résume la journée : le ménage à faire, le virement s'il n'est pas encore fait, ce qu'il y a sur la liste de courses et les réparations urgentes. On la ferme d'un geste ou on touche une ligne pour aller au bon onglet. Le code est dans resume.js.
+À chaque ouverture de l'appli, une fenêtre résume la journée : le ménage à faire, le virement s'il n'est pas encore fait, ce qu'il y a sur la liste de courses et les choses à réparer, les urgentes en premier. On la ferme d'un geste ou on touche une ligne pour aller au bon onglet. Le code est dans resume.js.
 
 ## Le suivi
 
