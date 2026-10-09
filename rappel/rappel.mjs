@@ -58,7 +58,7 @@ if (manuel || (jourDuMois - 1) % 3 === 0) {
       const nomMois = aujourdhui.toLocaleDateString('fr-FR', { month: 'long' });
       const euros = (Math.round(v.montant * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
       messages.push({
-        tag: 'virement', url: './budget.html',
+        tag: 'virement', url: './',
         title: `Le virement ${/^[aeiouy]/.test(nomMois) ? 'd’' : 'de '}${nomMois}`,
         body: `${noms[v.de]} vire ${euros} à ${noms[v.vers]}. Pensez à le cocher une fois fait.`
       });

@@ -12,9 +12,9 @@ Le site est hébergé sur GitHub Pages. Les chiffres sont stockés dans Firebase
 4. Dans les paramètres du projet, ajouter une application Web et recopier sa configuration dans firebase-config.js.
 5. Sur GitHub, dans Settings puis Pages, choisir la branche main comme source.
 
-## Aujourd'hui
+## Le résumé du jour
 
-La page d'accueil résume la journée : le ménage du jour à cocher directement, le virement s'il reste à faire, ce qu'il y a sur la liste de courses et les réparations urgentes. Le budget est sur budget.html.
+À chaque ouverture de l'appli, une fenêtre résume la journée : le ménage à faire, le virement s'il n'est pas encore fait, ce qu'il y a sur la liste de courses et les réparations urgentes. On la ferme d'un geste ou on touche une ligne pour aller au bon onglet. Le code est dans resume.js.
 
 ## Le suivi
 

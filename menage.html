@@ -274,7 +274,7 @@ details.later[open] summary{margin-bottom:10px}
 </svg>
 </div>
 <div class="wrap">
-  <nav class="tabs" aria-label="Sections"><a href="./">Aujourd’hui</a><a href="budget.html">Budget</a><a href="menage.html" aria-current="page">Ménage</a><a href="courses.html">Courses</a><a href="reparations.html">À réparer</a></nav>
+  <nav class="tabs" aria-label="Sections"><a href="./">Budget</a><a href="menage.html" aria-current="page">Ménage</a><a href="courses.html">Courses</a><a href="reparations.html">À réparer</a></nav>
   <header>
     <div>
       <h1>Le ménage</h1>
@@ -295,6 +295,8 @@ details.later[open] summary{margin-bottom:10px}
 <script src="firebase-config.js"></script>
 <script>firebase.initializeApp(window.FIREBASE_CONFIG);</script>
 <script src="sauvegarde.js"></script>
+<script src="calcul-budget.js"></script>
+<script src="resume.js"></script>
 <script>
 (async function(){
 const $ = s => document.querySelector(s);
