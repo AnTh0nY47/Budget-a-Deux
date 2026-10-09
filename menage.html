@@ -417,8 +417,8 @@ function notifHtml(){
   const ok = 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
   const vapid = window.FIREBASE_VAPID_KEY && !/A_REMPLIR/.test(window.FIREBASE_VAPID_KEY);
   if(!vapid) return '';
-  let actif = false; try{ actif = ok && Notification.permission === 'granted' && localStorage.getItem('notifOK'); }catch(e){}
-  if(actif) return `<span class="hint">Rappel du soir activé</span>`;
+  // Actif dès que le téléphone a donné son accord : le jeton est remis à jour à chaque ouverture
+  if(ok && Notification.permission === 'granted') return `<span class="hint">Rappel du soir activé sur ce téléphone</span>`;
   if(!ok) return '';
   return `<button class="link" id="notif">Activer le rappel du soir</button>`;
 }
@@ -702,6 +702,22 @@ async function seed(){
 }
 
 /* ---------- notifications ---------- */
+// À chaque ouverture, si les notifications sont autorisées, on renvoie le jeton du téléphone.
+// Les jetons changent de temps en temps (mise à jour de l'appli, de l'iPhone) : sans ça, le rappel s'arrêterait sans prévenir.
+async function rafraichirJeton(){
+  try{
+    if(!('Notification' in window) || Notification.permission !== 'granted' || !moi) return;
+    if(!window.FIREBASE_VAPID_KEY || /A_REMPLIR/.test(window.FIREBASE_VAPID_KEY) || !navigator.onLine) return;
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    const token = await firebase.messaging().getToken({vapidKey: window.FIREBASE_VAPID_KEY, serviceWorkerRegistration: reg});
+    if(!token) return;
+    let ancien = null; try{ ancien = localStorage.getItem('jetonNotif'); }catch(e){}
+    await fs.collection('appareils').doc(token).set({uid: moi.uid, nom: moi.nom, maj: firebase.firestore.FieldValue.serverTimestamp()});
+    if(ancien && ancien !== token) await fs.collection('appareils').doc(ancien).delete().catch(()=>{});
+    try{ localStorage.setItem('jetonNotif', token); localStorage.setItem('notifOK','1'); }catch(e){}
+  }catch(e){ console.warn('Jeton de notification non renouvelé', e); }
+}
 async function activerNotifs(){
   try{
     const perm = await Notification.requestPermission();
@@ -711,7 +727,7 @@ async function activerNotifs(){
     const token = await firebase.messaging().getToken({vapidKey: window.FIREBASE_VAPID_KEY, serviceWorkerRegistration: reg});
     if(!token) throw new Error('pas de jeton');
     await fs.collection('appareils').doc(token).set({uid: moi.uid, nom: moi.nom, maj: firebase.firestore.FieldValue.serverTimestamp()});
-    try{ localStorage.setItem('notifOK','1'); }catch(e){}
+    try{ localStorage.setItem('notifOK','1'); localStorage.setItem('jetonNotif', token); }catch(e){}
     flash('C’est activé. Tu recevras un rappel le soir quand il y a des choses à faire.');
     render();
   }catch(err){
@@ -771,6 +787,7 @@ auth.onAuthStateChanged(async u => {
   }
   if(!moi) choisirNom(u);
   setTimeout(() => window.Sauvegarde && Sauvegarde.auto(fs), 3000);
+  setTimeout(rafraichirJeton, 2000);
   col.onSnapshot(snap => {
     tasks = snap.docs.map(d => {
       const t = {id:d.id, ...d.data()};
