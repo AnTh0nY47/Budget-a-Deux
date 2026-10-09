@@ -57,7 +57,31 @@
     return `tous les ${n} jours`;
   }
 
-  const api = { lireJour, plus, prochaine, dans, frequence, NOMS_JOURS };
+  // Points du défi du mois : une tâche rare rapporte plus qu'une tâche de tous les jours
+  function points(t) {
+    if (!t || t.apres || joursPrecis(t)) return 1;
+    const n = t.jours || 7;
+    if (n <= 3) return 1;
+    if (n <= 7) return 2;
+    if (n <= 14) return 3;
+    return 4;
+  }
+
+  // Scores d'un mois à partir de l'historique (lignes {tache, cle, jour}) et des tâches par id
+  function scores(historique, tous, an, mois) {
+    const s = { a: 0, b: 0, nb: { a: 0, b: 0 } };
+    const vus = new Set();
+    historique.forEach(h => {
+      const d = lireJour(h.jour);
+      if (!d || d.getFullYear() !== an || d.getMonth() !== mois || !(h.cle in s.nb)) return;
+      const k = h.tache + '|' + h.jour; if (vus.has(k)) return; vus.add(k);
+      s[h.cle] += points(tous && tous[h.tache]); s.nb[h.cle]++;
+    });
+    s.gagnant = s.a === s.b ? null : (s.a > s.b ? 'a' : 'b');
+    return s;
+  }
+
+  const api = { lireJour, plus, prochaine, dans, frequence, points, scores, NOMS_JOURS };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else racine.Planning = api;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -63,6 +63,24 @@
       lignes.push(['menage.html', aFaire.length && !v.actif ? `Le ménage du jour, ${aFaire.length} chose${aFaire.length > 1 ? 's' : ''}` : 'Le ménage du jour', txt]);
     }
 
+    // Résultat du défi du mois précédent, les trois premiers jours du mois
+    if (P && P.scores && auj.getDate() <= 3) {
+      try {
+        const av = new Date(auj.getFullYear(), auj.getMonth() - 1, 1);
+        const debut = isoDay(av), fin = isoDay(new Date(auj.getFullYear(), auj.getMonth(), 1));
+        const [hs, dfs] = await Promise.all([
+          fs.collection('menage_historique').where('jour', '>=', debut).where('jour', '<', fin).get(),
+          fs.doc('defis/' + cleMois(av)).get()
+        ]);
+        const tous = Object.fromEntries(menage.docs.map(d => [d.id, d.data()]));
+        const sc = P.scores(hs.docs.map(d => d.data()), tous, av.getFullYear(), av.getMonth());
+        if (sc.a + sc.b > 0) {
+          const nm = av.toLocaleDateString('fr-FR', { month: 'long' }), g = sc.gagnant, p = g === 'a' ? 'b' : 'a', gage = (dfs.data() || {}).gage;
+          lignes.push(['menage.html', `Le défi ${de(nm)}`, g ? `<b>${esc(personnes[g])}</b> gagne ${sc[g]} à ${sc[p]} !${gage ? ` Gage pour ${esc(personnes[p])} : « ${esc(gage)} »` : ''}` : `Égalité, ${sc.a} partout.`]);
+        }
+      } catch (e) {}
+    }
+
     // Virement
     const m = mois.data() || {};
     if (CB && main.exists && !m.vire) {

@@ -73,6 +73,34 @@ if (creneau === 'soir' && (manuel || (jourDuMois - 1) % 3 === 0)) {
   }
 }
 
+// 3. Le défi du mois
+{
+  const finMois = new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() + 1, 0).getDate();
+  const dernierJour = aujourdhui.getDate() === finMois && creneau === 'soir';
+  const premierJour = aujourdhui.getDate() === 1 && creneau === 'midi';
+  if (dernierJour || premierJour || manuel) {
+    const cible = premierJour ? new Date(aujourdhui.getFullYear(), aujourdhui.getMonth() - 1, 1) : new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1);
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const debut = iso(cible), fin = iso(new Date(cible.getFullYear(), cible.getMonth() + 1, 1));
+    const hist = (await db.collection('menage_historique').where('jour', '>=', debut).where('jour', '<', fin).get()).docs.map(d => d.data());
+    const sc = P.scores(hist, tous, cible.getFullYear(), cible.getMonth());
+    if (sc.a + sc.b > 0) {
+      const main = (await db.doc('budget/main').get()).data() || {};
+      const noms = { a: main.personnes?.a || 'Personne A', b: main.personnes?.b || 'Personne B' };
+      const defi = (await db.doc(`defis/${debut.slice(0, 7)}`).get()).data() || {};
+      const nomMois = cible.toLocaleDateString('fr-FR', { month: 'long' });
+      const g = sc.gagnant, perdant = g === 'a' ? 'b' : 'a';
+      if (premierJour || (manuel && !dernierJour && aujourdhui.getDate() <= 3)) {
+        messages.push({ tag: 'defi', url: './menage.html', title: `Le défi ${/^[aeiouy]/.test(nomMois) ? 'd’' : 'de '}${nomMois}`,
+          body: g ? `${noms[g]} gagne ${sc[g]} à ${sc[perdant]} !${defi.gage ? ` Gage pour ${noms[perdant]} : ${defi.gage}` : ''}` : `Égalité parfaite, ${sc.a} partout.` });
+      } else {
+        messages.push({ tag: 'defi', url: './menage.html', title: 'Dernier jour du défi',
+          body: g ? `${noms[g]} mène ${sc[g]} à ${sc[perdant]}. ${noms[perdant]}, c’est le moment de faire une tâche !` : `Égalité, ${sc.a} partout. Tout se joue ce soir !` });
+      }
+    }
+  }
+}
+
 if (!messages.length) { console.log('Rien à rappeler ce soir.'); process.exit(0); }
 
 const appareils = await db.collection('appareils').get();
