@@ -3,7 +3,7 @@
 (function () {
   const style = document.createElement('style');
   style.textContent = `.reseau{position:fixed;left:50%;transform:translateX(-50%);top:max(10px,env(safe-area-inset-top));z-index:30;
-    background:var(--ink,#1b211e);color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;line-height:1.3;text-align:center;
+    background:var(--toast-bg,#1b211e);color:#fff;border-radius:999px;padding:8px 16px;font-size:14px;line-height:1.3;text-align:center;
     max-width:calc(100% - 32px);box-shadow:0 8px 20px -10px rgba(0,0,0,.4)}
     .reseau.ok{background:var(--green,#1f5e4a)}`;
   document.head.appendChild(style);

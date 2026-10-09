@@ -30,6 +30,10 @@ L'onglet Ménage garde la liste des tâches de la maison avec leur fréquence. I
 
 À midi puis à 18h, une tâche GitHub regarde ce qui est à faire et envoie une notification sur les téléphones qui l'ont activée. Le 1er du mois, puis tous les trois jours tant qu'il n'est pas coché, elle rappelle aussi le virement à faire avec son montant. Le script est dans le dossier rappel. Il a besoin du secret FIREBASE_SERVICE_ACCOUNT dans les réglages du dépôt, et la clé Web Push du projet doit être mise dans firebase-config.js.
 
+## Mode sombre
+
+De 20h à 7h, l'appli passe toute seule en couleurs foncées, plus reposantes le soir. Le code est dans theme.js.
+
 ## Sans réseau
 
 L'appli marche sans réseau, en magasin par exemple. Les pages sont gardées sur le téléphone, et si ça capte mal elle n'attend pas plus de trois secondes avant de les afficher. Firebase garde aussi les données sur le téléphone : on peut ajouter, cocher et terminer les courses hors connexion, tout part dès que le réseau revient. Un petit bandeau prévient quand il n'y a plus de réseau.

@@ -20,7 +20,7 @@
   .rs-v{font-size:18px;line-height:1.35}
   .rs-v .late{color:var(--red,#b5432f)}
   .rs-v .amt{color:var(--green,#1f5e4a);font-weight:600;white-space:nowrap}
-  .rs-ok{align-self:stretch;border:0;background:var(--green,#1f5e4a);color:#fff;border-radius:10px;padding:12px;font:inherit;font-size:17px;cursor:pointer}
+  .rs-ok{align-self:stretch;border:0;background:var(--green,#1f5e4a);color:var(--on-green,#fff);border-radius:10px;padding:12px;font:inherit;font-size:17px;cursor:pointer}
   @keyframes rs-in{from{opacity:0}}
   @keyframes rs-up{from{transform:translateY(24px);opacity:0}}
   @media (min-width:600px){.rs-fond{align-items:center}}
