@@ -30,6 +30,10 @@ L'onglet Ménage garde la liste des tâches de la maison avec leur fréquence. I
 
 Chaque soir à 18h, une tâche GitHub regarde ce qui est à faire et envoie une notification sur les téléphones qui l'ont activée. Le 1er du mois, puis tous les trois jours tant qu'il n'est pas coché, elle rappelle aussi le virement à faire avec son montant. Le script est dans le dossier rappel. Il a besoin du secret FIREBASE_SERVICE_ACCOUNT dans les réglages du dépôt, et la clé Web Push du projet doit être mise dans firebase-config.js.
 
+## Sans réseau
+
+L'appli marche sans réseau, en magasin par exemple. Les pages sont gardées sur le téléphone, et si ça capte mal elle n'attend pas plus de trois secondes avant de les afficher. Firebase garde aussi les données sur le téléphone : on peut ajouter, cocher et terminer les courses hors connexion, tout part dès que le réseau revient. Un petit bandeau prévient quand il n'y a plus de réseau.
+
 ## Les courses
 
 L'onglet Courses est une liste partagée. On tape ce qui manque et l'appli le range tout seul par rayon. En magasin on coche ce qu'on met dans le panier, l'autre le voit en direct. À la fin, on indique le montant du ticket et qui a payé : il part dans les dépenses du mois du budget. Les articles achetés souvent sont proposés pour les rajouter d'un geste.

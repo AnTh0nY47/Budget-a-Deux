@@ -310,6 +310,7 @@ details.later[open] summary{margin-bottom:10px}
 <script src="planning.js"></script>
 <script src="calcul-budget.js"></script>
 <script src="resume.js"></script>
+<script src="reseau.js"></script>
 <script>
 (async function(){
 const $ = s => document.querySelector(s);
@@ -433,7 +434,7 @@ function choisirNom(u){
     <div class="toolbar"><button class="primary" data-cle="a">${esc(personnes.a)}</button><button class="primary" data-cle="b">${esc(personnes.b)}</button></div></div>`;
   app.querySelectorAll('[data-cle]').forEach(b => b.onclick = async () => {
     const cle = b.dataset.cle; moi = {uid:u.uid, cle, nom:personnes[cle]};
-    await fs.collection('membres').doc(u.uid).set({cle}); render();
+    await fs.collection('membres').doc(u.uid).set({cle}); try{ localStorage.setItem('chezNousMoi', JSON.stringify({uid:u.uid, cle, personnes})); }catch(e){} render();
   });
 }
 
@@ -442,12 +443,18 @@ auth.onAuthStateChanged(async u => {
   if(!u){ loginBox(); $('#logout').hidden = true; return; }
   $('#logout').hidden = false;
   if(started) return; started = true;
+  // Sans réseau, on repart de ce qui a été retenu sur le téléphone à la dernière ouverture
+  let memo = null; try{ memo = JSON.parse(localStorage.getItem('chezNousMoi') || 'null'); }catch(e){}
   try{
     const b = await fs.doc('budget/main').get();
     if(b.exists && b.data().personnes) personnes = {...personnes, ...b.data().personnes};
     const m = await fs.collection('membres').doc(u.uid).get();
     if(m.exists) moi = {uid:u.uid, cle:m.data().cle, nom:personnes[m.data().cle]};
-  }catch(e){ return refuse(); }
+    if(moi){ try{ localStorage.setItem('chezNousMoi', JSON.stringify({uid:u.uid, cle:moi.cle, personnes})); }catch(e){} }
+  }catch(e){
+    if(e && e.code === 'permission-denied') return refuse();
+    if(memo && memo.uid === u.uid){ personnes = {...personnes, ...memo.personnes}; moi = {uid:u.uid, cle:memo.cle, nom:personnes[memo.cle]}; }
+  }
   if(!moi) choisirNom(u);
   setTimeout(() => window.Sauvegarde && Sauvegarde.auto(fs), 3000);
   col.onSnapshot(snap => {
@@ -460,7 +467,7 @@ auth.onAuthStateChanged(async u => {
       render(); $('#titre').value = v; $('#titre').focus(); return;
     }
     render();
-  }, refuse);
+  }, e => { if(e && e.code === 'permission-denied') refuse(); });
 });
 app.addEventListener('focusout', e => { if(e.target.matches('textarea')) setTimeout(() => { if(!document.activeElement.matches('textarea')) render(); }, 700); });
 $('#logout').onclick = () => auth.signOut().then(()=>location.reload());

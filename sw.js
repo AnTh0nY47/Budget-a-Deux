@@ -1,7 +1,7 @@
 // Garde une copie de l'appli pour qu'elle s'ouvre vite, même avec peu de réseau.
 // Les données du budget, elles, passent toujours par Firebase.
-const CACHE = 'cheznous-v16';
-const FICHIERS = ['./', './index.html', './calcul-budget.js', './resume.js', './menage.html', './courses.html', './reparations.html', './planning.js', './sauvegarde.js', './firebase-config.js', './manifest.webmanifest',
+const CACHE = 'cheznous-v17';
+const FICHIERS = ['./', './index.html', './calcul-budget.js', './resume.js', './reseau.js', './icons/favicon-32.png', './icons/icon-maskable-512.png', './menage.html', './courses.html', './reparations.html', './planning.js', './sauvegarde.js', './firebase-config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -21,13 +21,19 @@ self.addEventListener('fetch', e => {
 
   // Pages et fichiers du site : d'abord le réseau pour avoir la dernière version, sinon la copie
   if (url.origin === location.origin) {
-    e.respondWith(
-      fetch(req, { cache: 'no-cache' }).then(res => {
-        const copie = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copie));
-        return res;
-      }).catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
-    );
+    // D'abord le réseau pour avoir la dernière version, mais si ça capte mal (en magasin),
+    // on n'attend pas plus de 3 secondes : on prend la copie gardée sur le téléphone.
+    const reseau = fetch(req, { cache: 'no-cache' }).then(res => {
+      if (res && res.ok) { const copie = res.clone(); caches.open(CACHE).then(c => c.put(req, copie)); }
+      return res;
+    });
+    e.respondWith(new Promise(resolve => {
+      let fini = false;
+      const copie = () => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./index.html'));
+      const minuteur = setTimeout(() => copie().then(r => { if (r && !fini) { fini = true; resolve(r); } }), 3000);
+      reseau.then(res => { if (!fini) { fini = true; clearTimeout(minuteur); resolve(res); } })
+        .catch(() => { clearTimeout(minuteur); copie().then(r => { if (!fini) { fini = true; resolve(r || Response.error()); } }); });
+    }));
     return;
   }
 
