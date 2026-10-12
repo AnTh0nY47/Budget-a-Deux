@@ -442,7 +442,10 @@ function ligne(t, variante){
     else if(t.apres) sous = 'suite de « ' + esc((parId[t.apres]||{}).nom||'') + ' »';
     else if(t.dernier) sous = 'dernière fois ' + ilYa(t.dernier) + qui(t);
   } else if(variante === 'fait'){
-    sous = (t.dernierADeux ? 'fait à deux' : 'fait' + qui(t)) + (P.points(t) ? ` · <button class="manque" data-adeux-fait="${t.id}">${t.dernierADeux ? 'en fait, fait seul' : 'fait à deux ?'}</button>` : '');
+    const f = t.fois > 1 ? ` ${t.fois} fois` : '';
+    sous = (t.dernierADeux ? `fait${f} à deux` : 'fait' + f + qui(t))
+      + (P.points(t) ? ` · <button class="manque" data-adeux-fait="${t.id}">${t.dernierADeux ? 'en fait, fait seul' : 'fait à deux ?'}</button>` : '')
+      + ` · <button class="manque" data-encore="${t.id}">une fois de plus</button>`;
   } else if(variante === 'jamais'){
     sous = esc(P.frequence(t, parId));
   }
@@ -554,8 +557,10 @@ function render(){
   const auj = isoDay(today());
   const tri = (a,b) => a.n - b.n || a.t.nom.localeCompare(b.t.nom);
   const tout = tasks.map(t => ({t, n: P.dans(t, today(), parId)}));
-  const faits = tout.filter(x => x.t.dernier === auj);
-  const reste = tout.filter(x => x.t.dernier !== auj);
+  // Une suite (vider le lave-vaisselle) déjà faite aujourd'hui revient si la tâche d'avant a été refaite
+  const fini = x => x.t.dernier === auj && x.n > 0;
+  const faits = tout.filter(fini);
+  const reste = tout.filter(x => !fini(x));
   const jour = reste.filter(x => !jamais(x.t) && x.n <= 0).sort(tri);
   const neuves = reste.filter(x => jamais(x.t)).sort((a,b)=>a.t.nom.localeCompare(b.t.nom));
   const bientot = reste.filter(x => !jamais(x.t) && x.n >= 1 && x.n <= 7).sort(tri);
@@ -735,6 +740,8 @@ let toastTimer = null;
 app.addEventListener('click', async e => {
   const ad = e.target.closest('[data-adeux]');
   if(ad){ const t = tasks.find(x => x.id === ad.dataset.adeux); if(t){ await col.doc(t.id).update({aDeux: !t.aDeux}); } return; }
+  const enc = e.target.closest('[data-encore]');
+  if(enc){ const t = tasks.find(x => x.id === enc.dataset.encore); if(t && !enc.disabled){ enc.disabled = true; await cocher(t); } return; }
   const adf = e.target.closest('[data-adeux-fait]');
   if(adf){
     const t = tasks.find(x => x.id === adf.dataset.adeuxFait); if(!t) return;
@@ -766,7 +773,7 @@ app.addEventListener('click', async e => {
     const t = tasks.find(x => x.id === d.dataset.done); if(!t || d.dataset.busy) return;
     d.dataset.busy = '1';
     try{
-      if(t.dernier === isoDay(today())) await decocher(t);   // retoucher le rond : on annule
+      if(d.getAttribute('aria-pressed') === 'true') await decocher(t);   // retoucher le rond : on annule la dernière fois
       else await cocher(t, d);
     } finally { delete d.dataset.busy; }
     return;
@@ -785,19 +792,22 @@ async function cocher(t, bouton){
   const h = hist.doc();
   const b = fs.batch();
   const ensemble = !!t.aDeux;
-  b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle, dernierADeux: ensemble,
-    precedent: {dernier: t.dernier||null, par: t.par||'', cle: t.cle||'', dernierADeux: !!t.dernierADeux}, histId: h.id});
-  b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, aDeux: ensemble, jour, ts: firebase.firestore.FieldValue.serverTimestamp()});
+  // Déjà faite aujourd'hui : on compte une fois de plus (deux lave-vaisselle dans la journée)
+  const fois = t.dernier === jour ? (t.fois || 1) + 1 : 1;
+  const avant = {dernier: t.dernier||null, par: t.par||'', cle: t.cle||'', dernierADeux: !!t.dernierADeux, fois: t.fois||1, histId: t.histId||null,
+    precedent: t.dernier === jour ? (t.precedent||null) : null};
+  b.update(col.doc(t.id), {dernier: jour, par: moi.nom, cle: moi.cle, dernierADeux: ensemble, fois, precedent: avant, histId: h.id});
+  b.set(h, {tache:t.id, nom:t.nom, par:moi.nom, cle:moi.cle, aDeux: ensemble, jour, n: fois, ts: firebase.firestore.FieldValue.serverTimestamp()});
   await b.commit();
   dernierCoche = t.id;
-  $('#toastMsg').textContent = `${t.nom} : c\u2019est noté`;
+  $('#toastMsg').textContent = fois > 1 ? `${t.nom} : ${fois} fois aujourd\u2019hui` : `${t.nom} : c\u2019est noté`;
   $('#toast').hidden = false; clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { $('#toast').hidden = true; dernierCoche = null; }, 5000);
 }
 async function decocher(t){
   const p = t.precedent || {dernier:null, par:'', cle:''};
   const b = fs.batch();
-  b.update(col.doc(t.id), {dernier: p.dernier||null, par: p.par||'', cle: p.cle||'', dernierADeux: !!p.dernierADeux, precedent: null, histId: null});
+  b.update(col.doc(t.id), {dernier: p.dernier||null, par: p.par||'', cle: p.cle||'', dernierADeux: !!p.dernierADeux, fois: p.fois||1, precedent: p.precedent||null, histId: p.histId||null});
   if(t.histId) b.delete(hist.doc(t.histId));
   else { // ancienne coche sans référence : on retire l'entrée du jour dans l'historique
     const q = await hist.where('tache','==',t.id).where('jour','==',t.dernier).get().catch(()=>null);
@@ -805,7 +815,7 @@ async function decocher(t){
   }
   await b.commit();
   $('#toast').hidden = true; dernierCoche = null;
-  flash(`${t.nom} : décoché`);
+  flash((t.fois||1) > 1 ? `${t.nom} : une fois en moins` : `${t.nom} : décoché`);
 }
 let dernierCoche = null;
 $('#undo').onclick = async () => {
@@ -984,10 +994,10 @@ auth.onAuthStateChanged(async u => {
     if(!editing) render();
   }, () => {});
   hist.orderBy('ts','desc').limit(600).onSnapshot(snap => {
-    // Retire les doublons (même tâche cochée plusieurs fois le même jour)
-    const vus = new Set();
-    snap.docs.slice().reverse().forEach(d => { const h = d.data(); const k = h.tache+'|'+h.jour; if(vus.has(k)) hist.doc(d.id).delete().catch(()=>{}); else vus.add(k); });
-    histo = snap.docs.filter((d,i,arr) => arr.findIndex(x => x.data().tache===d.data().tache && x.data().jour===d.data().jour) === i).map(d => d.data()).filter(h => h.jour).map(h => ({...h, par: personnes[h.cle] || h.par}));
+    // Retire les doublons (même tâche cochée deux fois par erreur, sans numéro de passage)
+    const vus = new Set(), cleH = h => h.tache+'|'+h.jour+'|'+(h.n||1);
+    snap.docs.slice().reverse().forEach(d => { const k = cleH(d.data()); if(vus.has(k)) hist.doc(d.id).delete().catch(()=>{}); else vus.add(k); });
+    histo = snap.docs.filter((d,i,arr) => arr.findIndex(x => cleH(x.data()) === cleH(d.data())) === i).map(d => d.data()).filter(h => h.jour).map(h => ({...h, par: personnes[h.cle] || h.par}));
     if(!editing) render();
   }, () => {});
 });

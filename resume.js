@@ -54,7 +54,7 @@
       const taches = menage.docs.map(d => Object.assign({ id: d.id }, d.data()));
       const parId = Object.fromEntries(taches.map(t => [t.id, t]));
       const jamais = t => !t.dernier && !t.apres && !(t.joursSemaine || []).length;
-      const aFaire = taches.filter(t => t.dernier !== isoDay(auj) && !jamais(t) && P.dans(t, auj, parId) <= 0)
+      const aFaire = taches.filter(t => (t.dernier !== isoDay(auj) || t.apres) && !jamais(t) && P.dans(t, auj, parId) <= 0)
         .sort((a, b) => P.dans(a, auj, parId) - P.dans(b, auj, parId));
       let txt;
       if (v.actif) txt = 'En pause pendant les vacances.';

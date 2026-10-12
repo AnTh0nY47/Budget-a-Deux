@@ -18,7 +18,9 @@
       const parent = tous && tous[t.apres];
       const fait = parent && lireJour(parent.dernier);
       if (!fait) return null;                       // la tâche d'avant n'a pas encore été faite
-      if (dernier && dernier >= fait) return null;  // déjà fait depuis
+      if (dernier && dernier > fait) return null;   // déjà fait depuis
+      // même jour : à refaire seulement si la tâche d'avant a été faite plus de fois (deux lave-vaisselle, deux vidages)
+      if (dernier && +dernier === +fait && (t.fois || 1) >= (parent.fois || 1)) return null;
       return plus(fait, t.delai || 0);
     }
     const js = joursPrecis(t);
@@ -75,7 +77,7 @@
     historique.forEach(h => {
       const d = lireJour(h.jour);
       if (!d || d.getFullYear() !== an || d.getMonth() !== mois || !(h.cle in s.nb)) return;
-      const k = h.tache + '|' + h.jour; if (vus.has(k)) return; vus.add(k);
+      const k = h.tache + '|' + h.jour + '|' + (h.n || 1); if (vus.has(k)) return; vus.add(k);
       const pts = points(tous && tous[h.tache]);
       if (!pts) return;                                   // tâche hors défi
       if (h.aDeux) { s.a += pts; s.b += pts; s.nb.a++; s.nb.b++; } // faite ensemble : les deux marquent
