@@ -229,7 +229,9 @@ details.later[open] summary{margin-bottom:10px}
 .next-block h3{font-size:19px;font-weight:500;font-style:italic;color:var(--green);margin:0 0 6px}
 .next-day{display:grid;grid-template-columns:7.5em 1fr;gap:12px;padding:7px 0;border-bottom:1px solid var(--line);font-size:16px}
 .next-day:last-child{border-bottom:0}
-.next-day .dn{color:var(--muted)}
+.next-day .dn{color:var(--muted);padding-top:8px}
+.next-day .list .item{padding:6px 0;border:0;gap:12px}
+.next-day .list .name{font-size:16px}
 .bloc{border-top:1px solid var(--line);padding-top:12px}
 .bloc summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;font-size:18px}
 .bloc summary::-webkit-details-marker{display:none}
@@ -448,6 +450,8 @@ function ligne(t, variante){
       + ` · <button class="manque" data-encore="${t.id}">une fois de plus</button>`;
   } else if(variante === 'jamais'){
     sous = esc(P.frequence(t, parId));
+  } else if(variante === 'plustard'){
+    sous = n < 999 ? `dans ${n} jours` : esc(P.frequence(t, parId));
   }
   const coche = variante === 'fait';
   return `<li class="item ${variante}">
@@ -564,6 +568,7 @@ function render(){
   const jour = reste.filter(x => !jamais(x.t) && x.n <= 0).sort(tri);
   const neuves = reste.filter(x => jamais(x.t)).sort((a,b)=>a.t.nom.localeCompare(b.t.nom));
   const bientot = reste.filter(x => !jamais(x.t) && x.n >= 1 && x.n <= 7).sort(tri);
+  const plusTard = reste.filter(x => !jamais(x.t) && x.n > 7).sort(tri);
 
   // Les prochains jours, regroupés par date
   const parJour = {};
@@ -584,8 +589,15 @@ function render(){
 
   ${Object.keys(parJour).length ? `<section class="next-block">
     <h3>Les prochains jours</h3>
-    ${Object.keys(parJour).map(Number).sort((a,b)=>a-b).map(n => `<div class="next-day"><span class="dn">${nomJour(n)}</span><span class="dt">${parJour[n].map(t=>esc(t.nom)).join(', ')}</span></div>`).join('')}
+    ${Object.keys(parJour).map(Number).sort((a,b)=>a-b).map(n => `<div class="next-day"><span class="dn">${nomJour(n)}</span><ul class="list small">${parJour[n].map(t => ligne(t,'bientot')).join('')}</ul></div>`).join('')}
+    <p class="hint">Fait en avance ? Cochez-le, la date se recale.</p>
   </section>` : ''}
+
+  ${plusTard.length ? `<details class="bloc">
+    <summary><span>Plus tard</span><span class="tally">${plusTard.length}</span></summary>
+    <p class="hint">Tout le reste, à cocher quand vous voulez.</p>
+    <ul class="list small">${plusTard.map(x => ligne(x.t,'plustard')).join('')}</ul>
+  </details>` : ''}
 
   ${neuves.length ? `<details class="bloc">
     <summary><span>Pas encore faites</span><span class="tally">${neuves.length}</span></summary>
