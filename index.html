@@ -91,13 +91,28 @@ section{display:flex;flex-direction:column;gap:10px}
 .total{font-weight:500;font-size:18px;font-variant-numeric:tabular-nums}
 .hint{font-size:16px;color:var(--muted);margin:-4px 0 0}
 .rows{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px}
-.row{display:grid;grid-template-columns:minmax(0,1fr) 110px 220px 76px 34px;gap:8px;align-items:center;padding:5px 10px;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) 110px 220px 76px 34px;}
+.row.dep{grid-template-columns:minmax(0,1fr) 92px 122px 180px 76px 34px;gap:8px;align-items:center;padding:5px 10px;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
 .row input,.row select{font:inherit;font-size:max(16px,1em);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:7px;padding:7px 9px;width:100%;min-width:0}
 .row input:hover,.row select:hover{border-color:var(--line)}
 .row input:focus,.row select:focus{border-color:var(--green);outline:none;background:var(--focus-bg)}
 .row .m{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
 .row .w{color:var(--muted)}
+.row .cat{color:var(--muted);font-style:italic}
+.row .cat.devine{color:var(--faint)}
+/* récap des dépenses */
+.recap{display:flex;flex-direction:column;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.recap h3{font-size:19px;font-weight:500;font-style:italic;color:var(--green);margin:0}
+.recap .people .person{background:transparent}
+.rc-cats{display:flex;flex-direction:column}
+.rc-cat{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:9px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.rc-cat:first-child{border-top:0}
+.rc-cat .nom{font-size:17px}
+.rc-cat .tot{font-weight:600;white-space:nowrap}
+.rc-cat .det{grid-column:1/-1;font-size:15px;color:var(--muted)}
+.rc-cat .bar{grid-column:1/-1;height:6px;margin-top:2px;background:var(--line)}
+.rc-cat .bar i{border-radius:0}
 .kind{border:1px solid var(--line);background:var(--card);color:var(--green);border-radius:999px;padding:3px 10px;font-size:14px;font-style:italic;white-space:nowrap}
 .kind:hover{border-color:var(--green)}
 .kind.is-perso{color:var(--faint);border-style:dashed}
@@ -124,7 +139,9 @@ fieldset:disabled .add,fieldset:disabled .del{display:none}
 @media (max-width:560px){
   h1{font-size:28px}
   .hero-top,.calc{padding-left:18px;padding-right:18px}
-  .row{grid-template-columns:minmax(0,1fr) 104px 30px;grid-template-areas:"l m d" "w k d"}
+  .row,.row.dep{grid-template-columns:minmax(0,1fr) 104px 30px;grid-template-areas:"l m d" "w k d"}
+  .row.dep{grid-template-areas:"l m d" "w k d" "c c d"}
+  .row .cat{grid-area:c;font-size:15px;padding-top:2px;padding-bottom:4px}
   .row .kind,.row .kind-gap{grid-area:k;justify-self:end}
   .row .l{grid-area:l}.row .m{grid-area:m}.row .w{grid-area:w}.row .del{grid-area:d}
   .row .w{font-size:16px}
@@ -260,6 +277,33 @@ function ensureOwn(coll){ if(!own(coll)) month[coll] = clone(main[coll]); }
 function differs(coll){ return own(coll) && JSON.stringify(month[coll]) !== JSON.stringify(main[coll]||[]); }
 function names(){ return {a: main?.personnes?.a || 'Personne A', b: main?.personnes?.b || 'Personne B'}; }
 
+/* ---------- catégories des dépenses ---------- */
+const CATS = ['Courses','Essence','Resto','Loisirs','Maison','Santé','Vêtements','Cadeaux','Transport','Autre'];
+const MOTS = [
+  ['Essence', 'essence carburant gasoil diesel plein e85 sp95 sp98 station total totalenergies esso shell avia'],
+  ['Courses', 'course courses leclerc carrefour lidl aldi intermarche auchan super u hyper u casino monoprix franprix netto drive marche boulangerie boucherie'],
+  ['Resto', 'resto restaurant mcdo mcdonald burger king kfc kebab pizza sushi uber eats deliveroo brasserie cafe bar snack tacos'],
+  ['Loisirs', 'cinema cine concert bowling sortie jeu jeux steam playstation xbox spotify netflix disney livre musee parc escape laser karting abonnement'],
+  ['Maison', 'ikea leroy merlin castorama bricorama brico action meuble deco vaisselle ampoule menage'],
+  ['Santé', 'pharmacie medecin docteur dentiste ophtalmo mutuelle kine analyse'],
+  ['Vêtements', 'vetement vetements vinted zara h&m kiabi decathlon chaussures pull jean veste'],
+  ['Cadeaux', 'cadeau cadeaux anniversaire noel fleurs'],
+  ['Transport', 'train sncf ouigo bus tram parking peage autoroute blablacar uber taxi vignette']
+];
+const sansAccent = t => String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function devinerCat(label){
+  const n = ' ' + sansAccent(label).replace(/[^a-z0-9& ]/g,' ').replace(/\s+/g,' ') + ' ';
+  if(n.trim() === '') return 'Autre';
+  for(const [c, mots] of MOTS){
+    const liste = mots.split(' ');
+    for(let i = 0; i < liste.length; i++){
+      for(const k of [2,1]){ const e = liste.slice(i, i+k).join(' '); if(e && (n.includes(' '+e+' ') || n.includes(' '+e+'s '))) return c; }
+    }
+  }
+  return 'Autre';
+}
+const catDe = x => (x.cat && CATS.includes(x.cat)) ? x.cat : devinerCat(x.label);
+
 /* ---------- calcul ---------- */
 // Le virement de début de mois règle deux choses :
 // les charges fixes du mois qui commence, et les dépenses du mois précédent (courses, sorties…).
@@ -296,12 +340,18 @@ function whoSelect(field, val, N){
     <option value="a"${val==='a'?' selected':''}>${field==='qui'?'':field==='payeur'?'Payé par ':''}${esc(N.a)}</option>
     <option value="b"${val==='b'?' selected':''}>${field==='qui'?'':field==='payeur'?'Payé par ':''}${esc(N.b)}</option></select>`;
 }
+// La catégorie est devinée d'après le libellé tant qu'on ne l'a pas choisie à la main
+function catSelect(x){
+  const c = catDe(x), choisie = x.cat && CATS.includes(x.cat);
+  return `<select class="cat${choisie?'':' devine'}" data-f="cat" aria-label="Catégorie">${CATS.map(k=>`<option value="${k}"${k===c?' selected':''}>${k}</option>`).join('')}</select>`;
+}
 const fmtIn = v => (v===''||v==null) ? '' : num(v).toFixed(2).replace('.',',');
 function rowsHtml(list, coll, field, N, placeholder){
   if(!list || !list.length) return `<div class="empty">Rien pour l'instant.</div>`;
-  return list.map(x=>`<div class="row${x.perso?' perso':''}" data-c="${coll}" data-id="${esc(x.id)}">
+  return list.map(x=>`<div class="row${x.perso?' perso':''}${coll==='depenses'?' dep':''}" data-c="${coll}" data-id="${esc(x.id)}">
     <input class="l" data-f="label" value="${esc(x.label)}" placeholder="${placeholder}" aria-label="Libellé">
     <input class="m" data-f="montant" inputmode="decimal" value="${esc(fmtIn(x.montant))}" placeholder="0,00" aria-label="Montant en euros">
+    ${coll==='depenses' ? catSelect(x) : ''}
     ${whoSelect(field, x[field], N)}
     ${(coll==='charges'||coll==='depenses') ? `<button class="kind${x.perso?' is-perso':''}" data-perso aria-pressed="${x.perso?'true':'false'}" title="Une dépense perso n'entre pas dans le calcul">${x.perso?'perso':'commun'}</button>` : '<span class="kind-gap"></span>'}
     <button class="del" data-del aria-label="Supprimer ${esc(x.label)}">×</button></div>`).join('');
@@ -341,9 +391,10 @@ function renderAll(){
   <fieldset id="edit" ${canWrite?'':'disabled'} style="display:flex;flex-direction:column;gap:28px;margin-top:28px">
     <section ${secStyle('depenses')}>
       ${head('depenses','Dépenses du mois','','t-dep')}
-      <p class="hint">Les courses, les sorties, la pharmacie, au fur et à mesure du mois. Elles sont partagées selon les salaires et réglées avec le virement du début du mois prochain. Celles marquées perso ne comptent pas.</p>
+      <p class="hint">Les courses, l’essence, les restos, au fur et à mesure du mois. La catégorie se devine toute seule d’après le libellé, on peut la changer. Elles sont partagées selon les salaires et réglées avec le virement du début du mois prochain. Celles marquées perso ne comptent pas.</p>
       <div class="rows" id="r-dep">${rowsHtml(month.depenses,'depenses','payeur',N,'Courses Leclerc')}</div>
       <button class="add" data-add="depenses">Ajouter une dépense</button>
+      <div class="recap" id="recap"></div>
     </section>
     ${fixedSection('charges','Charges fixes','Elles reviennent chaque mois. Si un montant change, modifie-le ici, ça ne touche que ce mois. Une charge marquée perso ne compte pas dans le partage.','compte',N,'Loyer','t-ch','Ajouter une charge')}
     ${fixedSection('aides','Aides du foyer','On les retire des charges avant de faire les parts.','compte',N,'APL','t-ai','Ajouter une aide')}
@@ -441,10 +492,36 @@ function renderSummary(){
     </div>`;
   // Un mois réglé garde ses montants, même si les montants habituels changent plus tard
   const v = $('#vire'); if(v) v.onclick = ()=>{ month.vire = !month.vire; if(month.vire){ FIXED.forEach(ensureOwn); confetti(); } saveMonth(true); renderSummary(); };
+  renderRecap();
   const set = (id, v) => { const el=$(id); if(el) el.textContent = eur(v); };
   set('#t-dep', c.enCours.total); set('#t-ch', c.fixe); set('#t-ai', c.aides); set('#t-rev', c.Ra+c.Rb);
 }
 
+
+/* ---------- le récap des dépenses du mois ---------- */
+function renderRecap(){
+  const box = $('#recap'); if(!box) return;
+  const N = names(), D = (month.depenses||[]).filter(x => num(x.montant) > 0);
+  const nomMois = cur.toLocaleDateString('fr-FR',{month:'long'});
+  if(!D.length){ box.innerHTML = `<h3>Le récap ${/^[aeiouyh]/i.test(nomMois)?'d’':'de '}${nomMois}</h3><p class="hint" style="margin:0">Rien pour l’instant. Le total de chacun et le détail par catégorie apparaîtront ici.</p>`; return; }
+  const parQui = k => { const l = D.filter(x => x.payeur === k); return {tout: sum(l), perso: sum(l.filter(x=>x.perso)), nb: l.length}; };
+  const qa = parQui('a'), qb = parQui('b'), total = qa.tout + qb.tout;
+  const personne = (k, q, coul) => `<div class="person"><div class="who"><i style="background:var(${coul})"></i>${esc(N[k])}</div>
+      <div class="line"><span>A payé</span><span>${eur(q.tout)}</span></div>
+      <div class="line"><span>Dont commun</span><span>${eur(q.tout - q.perso)}</span></div>
+      <div class="line"><span>Dont perso</span><span>${eur(q.perso)}</span></div></div>`;
+  const cats = {};
+  D.forEach(x => { const c = catDe(x); const o = cats[c] = cats[c] || {t:0, a:0, b:0, perso:0, n:0}; const m = num(x.montant); o.t += m; o.n++; if(x.payeur==='b') o.b += m; else o.a += m; if(x.perso) o.perso += m; });
+  const liste = Object.entries(cats).sort((p, q) => q[1].t - p[1].t);
+  box.innerHTML = `<h3>Le récap ${/^[aeiouyh]/i.test(nomMois)?'d’':'de '}${nomMois}</h3>
+    <div class="people">${personne('a', qa, '--a')}${personne('b', qb, '--b')}</div>
+    <p class="hint" style="margin:0">${eur(total)} de dépenses en tout ce mois-ci, perso comprises.</p>
+    <div class="rc-cats">${liste.map(([c, o]) => `<div class="rc-cat">
+      <span class="nom">${esc(c)}</span><span class="tot">${eur(o.t)} <small style="color:var(--muted);font-weight:400">${Math.round(o.t/total*100)} %</small></span>
+      <div class="bar" aria-hidden="true">${o.a?`<i style="width:${o.a/o.t*100}%;background:var(--a)"></i>`:''}${o.b?`<i style="width:${o.b/o.t*100}%;background:var(--b)"></i>`:''}</div>
+      <span class="det">${[o.a?`${esc(N.a)} ${eur(o.a)}`:'', o.b?`${esc(N.b)} ${eur(o.b)}`:''].filter(Boolean).join(', ')}${o.perso?`, dont ${eur(o.perso)} perso`:''} · ${o.n} dépense${o.n>1?'s':''}</span>
+    </div>`).join('')}</div>`;
+}
 
 /* ---------- le suivi des mois ---------- */
 let tousMois = {};   // mois/AAAA-MM -> document
@@ -454,7 +531,7 @@ function chiffresMois(cle){
   const m = tousMois[cle] || {};
   const effM = k => Array.isArray(m[k]) ? m[k] : (main?.[k] || []);
   const D = commun(m.depenses);
-  const courses = sum(D, x => /course/i.test(x.label||''));
+  const courses = sum(D, x => catDe(x) === 'Courses');
   return {cle, charges: Math.max(0, sum(commun(effM('charges'))) - sum(effM('aides'))), courses, autres: sum(D) - courses};
 }
 function renderSuivi(){
@@ -572,6 +649,8 @@ app.addEventListener('input', e=>{
   const item = listFor(row.dataset.c).find(x=>x.id===row.dataset.id); if(!item) return;
   if(t.dataset.f==='montant') item.montant = num(t.value); else item[t.dataset.f] = t.value;
   if(row.dataset.c!=='depenses') tagsStale = true;
+  // la catégorie devinée suit le libellé pendant qu'on tape
+  if(t.dataset.f==='label' && row.dataset.c==='depenses' && !item.cat){ const sel = row.querySelector('[data-f="cat"]'); if(sel) sel.value = devinerCat(t.value); }
   renderSummary(); saveMonth();
 });
 app.addEventListener('change', e=>{

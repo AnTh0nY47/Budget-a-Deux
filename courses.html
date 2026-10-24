@@ -440,7 +440,7 @@ async function terminer(){
   if(isFinite(montant) && montant > 0){
     const d = new Date(), cle = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
     const jour = d.toLocaleDateString('fr-FR',{day:'numeric', month:'long'});
-    b.set(fs.doc('mois/' + cle), {depenses: firebase.firestore.FieldValue.arrayUnion({id: Math.random().toString(36).slice(2,9), label: `Courses du ${jour}`, montant: Math.round(montant*100)/100, payeur})}, {merge:true});
+    b.set(fs.doc('mois/' + cle), {depenses: firebase.firestore.FieldValue.arrayUnion({id: Math.random().toString(36).slice(2,9), label: `Courses du ${jour}`, cat: 'Courses', montant: Math.round(montant*100)/100, payeur})}, {merge:true});
   }
   await b.commit();
   finir = false;

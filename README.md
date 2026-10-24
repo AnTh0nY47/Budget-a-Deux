@@ -16,6 +16,10 @@ Le site est hébergé sur GitHub Pages. Les chiffres sont stockés dans Firebase
 
 À chaque ouverture de l'appli, une fenêtre résume la journée : le ménage à faire, le virement s'il n'est pas encore fait, ce qu'il y a sur la liste de courses et les choses à réparer, les urgentes en premier. On la ferme d'un geste ou on touche une ligne pour aller au bon onglet. Le code est dans resume.js.
 
+## Le récap des dépenses
+
+Chaque dépense a une catégorie : courses, essence, resto, loisirs, maison, santé, vêtements, cadeaux, transport ou autre. L'appli la devine d'après le libellé, « Plein Total » part en essence et « Courses Lidl » en courses, et on peut la changer d'un geste. Sous la liste, le récap du mois montre ce que chacun a payé, la part commune et la part perso, puis le détail par catégorie avec qui a payé quoi.
+
 ## Le suivi
 
 En bas du virement, un graphique montre mois par mois ce qui part dans les charges (aides déduites), dans les courses et dans les autres dépenses communes, sur les six derniers mois. On touche une barre pour voir le détail, et le même détail existe en tableau.
