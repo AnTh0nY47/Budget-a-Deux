@@ -1,6 +1,6 @@
 // Garde une copie de l'appli pour qu'elle s'ouvre vite, même avec peu de réseau.
 // Les données du budget, elles, passent toujours par Firebase.
-const CACHE = 'cheznous-v26';
+const CACHE = 'cheznous-v27';
 const FICHIERS = ['./', './index.html', './calcul-budget.js', './resume.js', './reseau.js', './theme.js', './icons/favicon-32.png', './icons/icon-maskable-512.png', './menage.html', './courses.html', './reparations.html', './planning.js', './sauvegarde.js', './firebase-config.js', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 
@@ -31,7 +31,12 @@ self.addEventListener('fetch', e => {
       let fini = false;
       const copie = () => caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./index.html'));
       const minuteur = setTimeout(() => copie().then(r => { if (r && !fini) { fini = true; resolve(r); } }), 3000);
-      reseau.then(res => { if (!fini) { fini = true; clearTimeout(minuteur); resolve(res); } })
+      reseau.then(res => {
+        if (fini) return;
+        // GitHub en panne (erreur 5xx) : on ouvre la copie gardée sur le téléphone plutôt que la page d'erreur
+        if (res && res.status >= 500) return copie().then(r => { if (!fini) { fini = true; clearTimeout(minuteur); resolve(r || res); } });
+        fini = true; clearTimeout(minuteur); resolve(res);
+      })
         .catch(() => { clearTimeout(minuteur); copie().then(r => { if (!fini) { fini = true; resolve(r || Response.error()); } }); });
     }));
     return;
