@@ -92,7 +92,7 @@ section{display:flex;flex-direction:column;gap:10px}
 .hint{font-size:16px;color:var(--muted);margin:-4px 0 0}
 .rows{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:12px}
 .row{display:grid;grid-template-columns:minmax(0,1fr) 110px 220px 76px 34px;}
-.row.dep{grid-template-columns:minmax(0,1fr) 92px 122px 180px 76px 34px;gap:8px;align-items:center;padding:5px 10px;border-top:1px solid var(--line)}
+.row.dep{grid-template-columns:minmax(0,1fr) 92px 122px 180px 76px 34px 34px;gap:8px;align-items:center;padding:5px 10px;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
 .row input,.row select{font:inherit;font-size:max(16px,1em);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:7px;padding:7px 9px;width:100%;min-width:0}
 .row input:hover,.row select:hover{border-color:var(--line)}
@@ -103,6 +103,14 @@ section{display:flex;flex-direction:column;gap:10px}
 .tri{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:15px;color:var(--muted)}
 .tri button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;font:inherit;font-size:15px;cursor:pointer}
 .tri button[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.pt{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--faint);background:transparent;color:transparent;display:grid;place-items:center;padding:0;cursor:pointer}
+.pt svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+.pt:hover{border-color:var(--green);color:var(--faint)}
+.pt[aria-pressed="true"]{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+.dbl{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;font-size:15px;color:var(--mustard-ink);padding:0 9px 6px}
+.dbl .link{font-size:15px}
+.row.doublon{background:var(--mustard-soft)}
+.alerte{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;font-size:16px;color:var(--mustard-ink);background:var(--mustard-soft);border-radius:10px;padding:10px 14px}
 .grp{display:flex;justify-content:space-between;gap:12px;padding:8px 12px 6px;background:var(--hover-soft);border-top:1px solid var(--line);font-size:15px;font-style:italic;color:var(--green);font-variant-numeric:tabular-nums}
 .grp:first-child{border-top:0;border-radius:12px 12px 0 0}
 .grp b{font-style:normal;font-weight:600;color:var(--ink)}
@@ -146,7 +154,9 @@ fieldset:disabled .add,fieldset:disabled .del{display:none}
   h1{font-size:28px}
   .hero-top,.calc{padding-left:18px;padding-right:18px}
   .row,.row.dep{grid-template-columns:minmax(0,1fr) 104px 30px;grid-template-areas:"l m d" "w k d"}
-  .row.dep{grid-template-areas:"l m d" "w k d" "c c d"}
+  .row.dep{grid-template-areas:"l m d" "w k d" "c c p"}
+  .row .pt{grid-area:p;width:28px;height:28px;justify-self:end}
+  .dbl{grid-column:1/-1;grid-row:auto}
   .row .cat{grid-area:c;font-size:15px;padding-top:2px;padding-bottom:4px}
   .row .kind,.row .kind-gap{grid-area:k;justify-self:end}
   .row .l{grid-area:l}.row .m{grid-area:m}.row .w{grid-area:w}.row .del{grid-area:d}
@@ -352,32 +362,57 @@ function catSelect(x){
   return `<select class="cat${choisie?'':' devine'}" data-f="cat" aria-label="Catégorie">${CATS.map(k=>`<option value="${k}"${k===c?' selected':''}>${k}</option>`).join('')}</select>`;
 }
 // Tri des dépenses, juste pour l'affichage (l'ordre enregistré ne change pas). Gardé sur ce téléphone.
-const TRIS = [['ajout','ordre d’ajout'],['montant','montant'],['cat','catégorie'],['payeur','qui a payé'],['perso','commun ou perso']];
+const TRIS = [['ajout','ordre d’ajout'],['montant','montant'],['cat','catégorie'],['payeur','qui a payé'],['perso','commun ou perso'],['pointe','à pointer']];
 let triDep = 'ajout';
 try { const t = localStorage.getItem('triDepenses'); if(TRIS.some(x => x[0] === t)) triDep = t; } catch(e) {}
+// Doublons possibles : même montant, même personne, même catégorie ou libellé proche, à quelques jours d'écart
+let doublons = {};
+function chercherDoublons(){
+  doublons = {};
+  const D = (month.depenses||[]).filter(x => num(x.montant) > 0 && !x.unique);
+  const proche = (a, b) => { const s = t => sansAccent(t).replace(/[^a-z0-9]/g,''); const x = s(a.label), y = s(b.label); return catDe(a) === catDe(b) || (x && y && (x.includes(y) || y.includes(x))); };
+  const jours = (a, b) => (a.date && b.date) ? Math.abs(new Date(a.date) - new Date(b.date)) / 86400000 : 0;
+  for(let i = 0; i < D.length; i++) for(let j = i+1; j < D.length; j++){
+    const a = D[i], b = D[j];
+    if(Math.abs(num(a.montant) - num(b.montant)) < 0.005 && (a.payeur||'a') === (b.payeur||'a') && proche(a, b) && jours(a, b) <= 3){
+      if(!doublons[a.id]) doublons[a.id] = b; if(!doublons[b.id]) doublons[b.id] = a;
+    }
+  }
+}
+function etatDepenses(){
+  const D = (month.depenses||[]).filter(x => num(x.montant) > 0);
+  if(!D.length) return '';
+  const pointees = D.filter(x => x.pointe);
+  const reste = D.filter(x => !x.pointe);
+  let txt = pointees.length === D.length ? 'Tout est pointé avec la banque.' : `${pointees.length ? `${pointees.length} sur ${D.length} pointée${pointees.length>1?'s':''} avec la banque` : 'Rien de pointé avec la banque pour l’instant'}, ${eur(sum(reste))} à vérifier. Touchez le rond à droite d’une dépense quand vous la voyez sur le relevé.`;
+  return `<p class="hint" style="margin:0">${txt}</p>`;
+}
 function depensesHtml(N){
+  chercherDoublons();
   const D = (month.depenses||[]).slice();
   if(triDep === 'ajout' || D.length < 2) return rowsHtml(D,'depenses','payeur',N,'Courses Leclerc');
   if(triDep === 'montant') return rowsHtml(D.sort((a,b) => num(b.montant) - num(a.montant)),'depenses','payeur',N,'');
-  const cle = triDep === 'cat' ? catDe : triDep === 'payeur' ? (x => x.payeur === 'b' ? 'b' : 'a') : (x => x.perso ? 'perso' : 'commun');
-  const nom = k => triDep === 'payeur' ? 'Payé par ' + esc(N[k]) : triDep === 'perso' ? (k === 'perso' ? 'Perso' : 'Commun') : esc(k);
+  const cle = triDep === 'cat' ? catDe : triDep === 'payeur' ? (x => x.payeur === 'b' ? 'b' : 'a') : triDep === 'pointe' ? (x => x.pointe ? 'ok' : 'non') : (x => x.perso ? 'perso' : 'commun');
+  const nom = k => triDep === 'payeur' ? 'Payé par ' + esc(N[k]) : triDep === 'perso' ? (k === 'perso' ? 'Perso' : 'Commun') : triDep === 'pointe' ? (k === 'ok' ? 'Pointées' : 'À pointer') : esc(k);
   const groupes = {};
   D.forEach(x => (groupes[cle(x)] = groupes[cle(x)] || []).push(x));
   return Object.entries(groupes)
-    .sort((p, q) => sum(q[1]) - sum(p[1]))
+    .sort((p, q) => triDep === 'pointe' ? (p[0] === 'non' ? -1 : 1) : sum(q[1]) - sum(p[1]))
     .map(([k, l]) => `<div class="grp"><span>${nom(k)} · ${l.length}</span><b>${eur(sum(l))}</b></div>` + rowsHtml(l.sort((a,b) => num(b.montant) - num(a.montant)),'depenses','payeur',N,''))
     .join('');
 }
 const fmtIn = v => (v===''||v==null) ? '' : num(v).toFixed(2).replace('.',',');
 function rowsHtml(list, coll, field, N, placeholder){
   if(!list || !list.length) return `<div class="empty">Rien pour l'instant.</div>`;
-  return list.map(x=>`<div class="row${x.perso?' perso':''}${coll==='depenses'?' dep':''}" data-c="${coll}" data-id="${esc(x.id)}">
+  return list.map(x=>`<div class="row${x.perso?' perso':''}${coll==='depenses'?' dep':''}${coll==='depenses' && doublons[x.id]?' doublon':''}" data-c="${coll}" data-id="${esc(x.id)}">
     <input class="l" data-f="label" value="${esc(x.label)}" placeholder="${placeholder}" aria-label="Libellé">
     <input class="m" data-f="montant" inputmode="decimal" value="${esc(fmtIn(x.montant))}" placeholder="0,00" aria-label="Montant en euros">
     ${coll==='depenses' ? catSelect(x) : ''}
     ${whoSelect(field, x[field], N)}
     ${(coll==='charges'||coll==='depenses') ? `<button class="kind${x.perso?' is-perso':''}" data-perso aria-pressed="${x.perso?'true':'false'}" title="Une dépense perso n'entre pas dans le calcul">${x.perso?'perso':'commun'}</button>` : '<span class="kind-gap"></span>'}
-    <button class="del" data-del aria-label="Supprimer ${esc(x.label)}">×</button></div>`).join('');
+    ${coll==='depenses' ? `<button class="pt" data-pointe aria-pressed="${x.pointe?'true':'false'}" title="${x.pointe?'Vue sur le relevé de banque':'À pointer avec le relevé de banque'}" aria-label="${x.pointe?'Pointée':'À pointer'} : ${esc(x.label)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12.5l4 4 8-9"/></svg></button>` : ''}
+    <button class="del" data-del aria-label="Supprimer ${esc(x.label)}">×</button>
+    ${coll==='depenses' && doublons[x.id] ? `<div class="dbl">Peut-être en double avec « ${esc(doublons[x.id].label || 'sans nom')} »<button class="link" data-supprimer-doublon>Supprimer celle-ci</button><button class="link" data-pas-doublon>Ce n’est pas un doublon</button></div>` : ''}</div>`).join('');
 }
 
 const SEC = {depenses:['--apricot'], charges:['--rose'], aides:['--lilac'], revenus:['--apricot'], noms:['--rose']};
@@ -416,7 +451,10 @@ function renderAll(){
       ${head('depenses','Dépenses du mois','','t-dep')}
       <p class="hint">Les courses, l’essence, les restos, au fur et à mesure du mois. La catégorie se devine toute seule d’après le libellé, on peut la changer. Elles sont partagées selon les salaires et réglées avec le virement du début du mois prochain. Celles marquées perso ne comptent pas.</p>
       ${(month.depenses||[]).length > 1 ? `<div class="tri" role="group" aria-label="Trier les dépenses">Trier par ${TRIS.map(([k,l]) => `<button data-tri="${k}" aria-pressed="${triDep===k}">${l}</button>`).join('')}</div>` : ''}
-      <div class="rows" id="r-dep">${depensesHtml(N)}</div>
+      ${(() => { const lignes = depensesHtml(N); const n = Object.keys(doublons).length;
+        return (n ? `<div class="alerte">${n === 2 ? 'Deux dépenses se ressemblent beaucoup' : `${n} dépenses se ressemblent beaucoup`}, regardez si ce n’est pas la même saisie deux fois.</div>` : '')
+          + `<div class="rows" id="r-dep">${lignes}</div>`; })()}
+      ${etatDepenses()}
       <button class="add" data-add="depenses">Ajouter une dépense</button>
       <div class="recap" id="recap"></div>
     </section>
@@ -665,14 +703,14 @@ const saveMain = now => schedule('main', now), saveMonth = now => schedule('mont
 
 /* ---------- interactions ---------- */
 function listFor(coll){ if(coll==='depenses') return month.depenses; ensureOwn(coll); return month[coll]; }
-let tagsStale = false;
+let tagsStale = false, depStale = null;
 app.addEventListener('input', e=>{
   const t = e.target;
   if(t.dataset.name){ main.personnes = main.personnes||{}; main.personnes[t.dataset.name] = t.value; saveMain(); return; }
   const row = t.closest('.row'); if(!row) return;
   const item = listFor(row.dataset.c).find(x=>x.id===row.dataset.id); if(!item) return;
   if(t.dataset.f==='montant') item.montant = num(t.value); else item[t.dataset.f] = t.value;
-  if(row.dataset.c!=='depenses') tagsStale = true;
+  if(row.dataset.c!=='depenses') tagsStale = true; else depStale = row.dataset.id;
   // la catégorie devinée suit le libellé pendant qu'on tape
   if(t.dataset.f==='label' && row.dataset.c==='depenses' && !item.cat){ const sel = row.querySelector('[data-f="cat"]'); if(sel) sel.value = devinerCat(t.value); }
   renderSummary(); saveMonth();
@@ -686,12 +724,20 @@ app.addEventListener('change', e=>{
   } else if(tagsStale){ tagsStale=false; renderAll(); }
 });
 app.addEventListener('click', e=>{
+  const pt = e.target.closest('[data-pointe]');
+  if(pt){ const row = pt.closest('.row'); const item = month.depenses.find(x => x.id === row.dataset.id); if(item){ item.pointe = !item.pointe; saveMonth(true); renderAll(); } return; }
+  const pd = e.target.closest('[data-pas-doublon]');
+  if(pd){ const row = pd.closest('.row'); const item = month.depenses.find(x => x.id === row.dataset.id); const autre = item && doublons[item.id];
+    if(item){ item.unique = true; if(autre){ const o = month.depenses.find(x => x.id === autre.id); if(o) o.unique = true; } saveMonth(true); renderAll(); } return; }
+  const sd = e.target.closest('[data-supprimer-doublon]');
+  if(sd){ const row = sd.closest('.row'); month.depenses = month.depenses.filter(x => x.id !== row.dataset.id); saveMonth(true); renderAll(); flash('Le doublon est supprimé.'); return; }
   const tri = e.target.closest('[data-tri]');
   if(tri){ triDep = tri.dataset.tri; try { localStorage.setItem('triDepenses', triDep); } catch(err) {} renderAll(); return; }
   const add = e.target.closest('[data-add]');
   if(add){
     const coll = add.dataset.add, field = coll==='depenses'?'payeur':coll==='revenus'?'qui':'compte';
     const it = {id:uid(), label:'', montant:0}; it[field]='a';
+    if(coll==='depenses'){ const d = new Date(); it.date = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
     listFor(coll).push(it); saveMonth(true);
     renderAll();
     const champ = document.querySelector(`.row[data-c="${coll}"][data-id="${it.id}"] .l`); if(champ){ champ.focus(); champ.scrollIntoView({block:'center'}); }
@@ -717,6 +763,17 @@ app.addEventListener('click', e=>{
 });
 // Les mises à jour venant de l'autre personne attendent que tu aies fini de taper
 app.addEventListener('focusout', ()=>setTimeout(()=>{
+  // une dépense vient d'être modifiée et on a quitté sa ligne : on revérifie les doublons
+  if(depStale){
+    const el = document.activeElement, r = el && el.closest && el.closest('.row');
+    if(!r || r.dataset.id !== depStale){
+      depStale = null;
+      const garde = r && app.contains(r) ? [r.dataset.id, el.dataset.f] : null;   // on remet le curseur où il était
+      renderAll();
+      if(garde){ const x = document.querySelector(`.row[data-id="${garde[0]}"] [data-f="${garde[1]}"]`); if(x) x.focus(); }
+      return;
+    }
+  }
   if(app.contains(document.activeElement) && document.activeElement.matches('input,select')) return;
   let dirty=false;
   if(pendingRemoteMain){ main=pendingRemoteMain; pendingRemoteMain=null; dirty=true; }
