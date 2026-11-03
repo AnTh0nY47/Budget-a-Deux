@@ -100,6 +100,12 @@ section{display:flex;flex-direction:column;gap:10px}
 .row .m{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
 .row .w{color:var(--muted)}
 .row .cat{color:var(--muted);font-style:italic}
+.tri{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:15px;color:var(--muted)}
+.tri button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;font:inherit;font-size:15px;cursor:pointer}
+.tri button[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--on-green)}
+.grp{display:flex;justify-content:space-between;gap:12px;padding:8px 12px 6px;background:var(--hover-soft);border-top:1px solid var(--line);font-size:15px;font-style:italic;color:var(--green);font-variant-numeric:tabular-nums}
+.grp:first-child{border-top:0;border-radius:12px 12px 0 0}
+.grp b{font-style:normal;font-weight:600;color:var(--ink)}
 .row .cat.devine{color:var(--faint)}
 /* récap des dépenses */
 .recap{display:flex;flex-direction:column;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
@@ -345,6 +351,23 @@ function catSelect(x){
   const c = catDe(x), choisie = x.cat && CATS.includes(x.cat);
   return `<select class="cat${choisie?'':' devine'}" data-f="cat" aria-label="Catégorie">${CATS.map(k=>`<option value="${k}"${k===c?' selected':''}>${k}</option>`).join('')}</select>`;
 }
+// Tri des dépenses, juste pour l'affichage (l'ordre enregistré ne change pas). Gardé sur ce téléphone.
+const TRIS = [['ajout','ordre d’ajout'],['montant','montant'],['cat','catégorie'],['payeur','qui a payé'],['perso','commun ou perso']];
+let triDep = 'ajout';
+try { const t = localStorage.getItem('triDepenses'); if(TRIS.some(x => x[0] === t)) triDep = t; } catch(e) {}
+function depensesHtml(N){
+  const D = (month.depenses||[]).slice();
+  if(triDep === 'ajout' || D.length < 2) return rowsHtml(D,'depenses','payeur',N,'Courses Leclerc');
+  if(triDep === 'montant') return rowsHtml(D.sort((a,b) => num(b.montant) - num(a.montant)),'depenses','payeur',N,'');
+  const cle = triDep === 'cat' ? catDe : triDep === 'payeur' ? (x => x.payeur === 'b' ? 'b' : 'a') : (x => x.perso ? 'perso' : 'commun');
+  const nom = k => triDep === 'payeur' ? 'Payé par ' + esc(N[k]) : triDep === 'perso' ? (k === 'perso' ? 'Perso' : 'Commun') : esc(k);
+  const groupes = {};
+  D.forEach(x => (groupes[cle(x)] = groupes[cle(x)] || []).push(x));
+  return Object.entries(groupes)
+    .sort((p, q) => sum(q[1]) - sum(p[1]))
+    .map(([k, l]) => `<div class="grp"><span>${nom(k)} · ${l.length}</span><b>${eur(sum(l))}</b></div>` + rowsHtml(l.sort((a,b) => num(b.montant) - num(a.montant)),'depenses','payeur',N,''))
+    .join('');
+}
 const fmtIn = v => (v===''||v==null) ? '' : num(v).toFixed(2).replace('.',',');
 function rowsHtml(list, coll, field, N, placeholder){
   if(!list || !list.length) return `<div class="empty">Rien pour l'instant.</div>`;
@@ -392,7 +415,8 @@ function renderAll(){
     <section ${secStyle('depenses')}>
       ${head('depenses','Dépenses du mois','','t-dep')}
       <p class="hint">Les courses, l’essence, les restos, au fur et à mesure du mois. La catégorie se devine toute seule d’après le libellé, on peut la changer. Elles sont partagées selon les salaires et réglées avec le virement du début du mois prochain. Celles marquées perso ne comptent pas.</p>
-      <div class="rows" id="r-dep">${rowsHtml(month.depenses,'depenses','payeur',N,'Courses Leclerc')}</div>
+      ${(month.depenses||[]).length > 1 ? `<div class="tri" role="group" aria-label="Trier les dépenses">Trier par ${TRIS.map(([k,l]) => `<button data-tri="${k}" aria-pressed="${triDep===k}">${l}</button>`).join('')}</div>` : ''}
+      <div class="rows" id="r-dep">${depensesHtml(N)}</div>
       <button class="add" data-add="depenses">Ajouter une dépense</button>
       <div class="recap" id="recap"></div>
     </section>
@@ -662,13 +686,15 @@ app.addEventListener('change', e=>{
   } else if(tagsStale){ tagsStale=false; renderAll(); }
 });
 app.addEventListener('click', e=>{
+  const tri = e.target.closest('[data-tri]');
+  if(tri){ triDep = tri.dataset.tri; try { localStorage.setItem('triDepenses', triDep); } catch(err) {} renderAll(); return; }
   const add = e.target.closest('[data-add]');
   if(add){
     const coll = add.dataset.add, field = coll==='depenses'?'payeur':coll==='revenus'?'qui':'compte';
     const it = {id:uid(), label:'', montant:0}; it[field]='a';
     listFor(coll).push(it); saveMonth(true);
     renderAll();
-    const rows = document.querySelectorAll(`.row[data-c="${coll}"] .l`); if(rows.length) rows[rows.length-1].focus();
+    const champ = document.querySelector(`.row[data-c="${coll}"][data-id="${it.id}"] .l`); if(champ){ champ.focus(); champ.scrollIntoView({block:'center'}); }
     return;
   }
   const kind = e.target.closest('[data-perso]');

@@ -18,7 +18,7 @@ Le site est hébergé sur GitHub Pages. Les chiffres sont stockés dans Firebase
 
 ## Le récap des dépenses
 
-Chaque dépense a une catégorie : courses, essence, resto, loisirs, maison, santé, vêtements, cadeaux, transport ou autre. L'appli la devine d'après le libellé, « Plein Total » part en essence et « Courses Lidl » en courses, et on peut la changer d'un geste. Sous la liste, le récap du mois montre ce que chacun a payé, la part commune et la part perso, puis le détail par catégorie avec qui a payé quoi.
+Chaque dépense a une catégorie : courses, essence, resto, loisirs, maison, santé, vêtements, cadeaux, transport ou autre. L'appli la devine d'après le libellé, « Plein Total » part en essence et « Courses Lidl » en courses, et on peut la changer d'un geste. Au dessus de la liste, on peut trier les dépenses par montant, par catégorie, par personne ou entre commun et perso. Les trois derniers tris les regroupent avec le total de chaque groupe, pratique pour faire les comptes. Le tri ne change que l'affichage et chaque téléphone garde le sien. Sous la liste, le récap du mois montre ce que chacun a payé, la part commune et la part perso, puis le détail par catégorie avec qui a payé quoi.
 
 ## Le suivi
 
